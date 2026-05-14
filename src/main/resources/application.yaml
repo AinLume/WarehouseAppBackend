@@ -1,0 +1,16 @@
+ktor:
+  application:
+    modules:
+      - ApplicationKt.module
+  deployment:
+    port: 8080
+
+postgres:
+  host: "localhost"
+  port: "5432"
+  name: "app_db"
+  user: "admin"
+  password: "securePassword"
+
+openapi:
+  spec: "openapi/docs-v1.yml"

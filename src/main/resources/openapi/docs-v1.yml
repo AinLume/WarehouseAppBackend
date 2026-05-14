@@ -1,0 +1,1307 @@
+openapi: "3.1.0"
+info:
+  title: "WarehouseApp API"
+  description: "WarehouseApp API"
+  version: "1.0.0"
+servers:
+  - url: "https://localhost:8080"
+
+tags:
+  - name: Categories
+    description: Управление категориями товаров
+  - name: Products
+    description: Управление товарами
+  - name: Suppliers
+    description: Управление поставщиками
+  - name: Warehouse
+    description: Управление складами и остатками
+  - name: Supply
+    description: Управление поставками и их статусами
+  - name: App
+    description: Эдпоинты для проверки состояния бэкэнда
+
+paths:
+  /api/v1/categories:
+    get:
+      tags: [Categories]
+      description: "GET /categories — список всех категорий"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/CategoryResponse"
+    post:
+      tags: [Categories]
+      description: "POST /categories — создать категорию"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+  /api/v1/categories/{id}:
+    delete:
+      tags: [Categories]
+      description: "DELETE /categories/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "204":
+          description: "No Content"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+    get:
+      tags: [Categories]
+      description: "GET /categories/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+    put:
+      tags: [Categories]
+      description: "PUT /categories/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+  /api/v1/health:
+    get:
+      tags: [App]
+      description: ""
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+  /api/v1/products:
+    get:
+      tags: [Products]
+      description: "GET /products?categoryId=1 — список, опциональный фильтр по ка\
+        тегории"
+      parameters:
+        - name: "categoryId"
+          in: "query"
+          required: false
+          schema:
+            type: "integer"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/ProductExResponse"
+    post:
+      tags: [Products]
+      description: "POST /products"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+  /api/v1/products/{id}:
+    delete:
+      tags: [Products]
+      description: "DELETE /products/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "204":
+          description: "No Content"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+    get:
+      tags: [Products]
+      description: "GET /products/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+    put:
+      tags: [Products]
+      description: "PUT /products/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+  /api/v1/suppliers:
+    get:
+      tags: [Suppliers]
+      description: "GET /suppliers"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/SupplierResponse"
+    post:
+      tags: [Suppliers]
+      description: "POST /suppliers"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupplierRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplierResponse"
+  /api/v1/suppliers/{id}:
+    delete:
+      tags: [Suppliers]
+      description: "DELETE /suppliers/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "204":
+          description: "No Content"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+    get:
+      tags: [Suppliers]
+      description: "GET /suppliers/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplierResponse"
+    put:
+      tags: [Suppliers]
+      description: "PUT /suppliers/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupplierRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplierResponse"
+  /api/v1/supplies:
+    get:
+      tags: [Supply]
+      description: "GET /supplies?warehouseId=1&status=CREATED"
+      parameters:
+        - name: "warehouseId"
+          in: "query"
+          required: false
+          schema:
+            type: "integer"
+        - name: "status"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/SupplyResponse"
+    post:
+      tags: [Supply]
+      description: "POST /supplies — создать поставку"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupplyRequest"
+        required: true
+      responses:
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplyResponse"
+  /api/v1/supplies/{id}:
+    delete:
+      tags: [Supply]
+      description: "DELETE /supplies/{id} — удалить (только CREATED или CANCELLED)"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "204":
+          description: "No Content"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+    get:
+      tags: [Supply]
+      description: "GET /supplies/{id} — детальная инфа + список товаров"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplyDetailResponse"
+  /api/v1/supplies/{id}/products:
+    post:
+      tags: [Supply]
+      description: "POST /supplies/{id}/products — добавить товар в поставку"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSupplyProductRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplyProductResponse"
+  /api/v1/supplies/{id}/products/{productId}:
+    delete:
+      tags: [Supply]
+      description: "DELETE /supplies/{id}/products/{productId} — убрать товар из п\
+        оставки"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+        - name: "productId"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "204":
+          description: "No Content"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+  /api/v1/supplies/{id}/status:
+    patch:
+      tags: [Supply]
+      description: "PATCH /supplies/{id}/status — изменить статус"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "number"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupplyStatusRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplyResponse"
+  /api/v1/warehouses:
+    get:
+      tags: [Warehouse]
+      description: "GET /warehouses"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/WarehouseResponse"
+    post:
+      tags: [Warehouse]
+      description: "POST /warehouses"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWarehouseRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "201":
+          description: "Created"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WarehouseResponse"
+  /api/v1/warehouses/{id}:
+    delete:
+      tags: [Warehouse]
+      description: "DELETE /warehouses/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "204":
+          description: "No Content"
+          content:
+            '*/*':
+              schema:
+                type: "object"
+    get:
+      tags: [Warehouse]
+      description: "GET /warehouses/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WarehouseResponse"
+    put:
+      tags: [Warehouse]
+      description: "PUT /warehouses/{id}"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWarehouseRequest"
+        required: true
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/WarehouseResponse"
+  /api/v1/warehouses/{id}/products:
+    get:
+      tags: [Warehouse]
+      description: "GET /warehouses/{id}/products — товары на складе сгруппированн\
+        ые по категориям"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "400":
+          description: "Bad Request"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "404":
+          description: "Not Found"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Map_String"
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/WarehouseCategoryGroupResponse"
+  /api/v1/warehouses/stats:
+    get:
+      tags: [Warehouse]
+      description: "GET /warehouses/stats — статистика глобальная по складам"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GlobalStatsResponse"
+components:
+  schemas:
+    Map:
+      type: "object"
+      properties: { }
+    Map_String:
+      type: "string"
+    CategoryResponse:
+      type: "object"
+      properties:
+        categoryId:
+          type: "integer"
+          format: "int32"
+        title:
+          type: "string"
+      required:
+        - "categoryId"
+        - "title"
+    CreateCategoryRequest:
+      type: "object"
+      properties:
+        title:
+          type: "string"
+      required:
+        - "title"
+    UpdateCategoryRequest:
+      type: "object"
+      properties:
+        title:
+          type: "string"
+      required:
+        - "title"
+    ProductResponse:
+      type: "object"
+      properties:
+        productId:
+          type: "integer"
+          format: "int64"
+        categoryId:
+          type: "integer"
+          format: "int32"
+        title:
+          type: "string"
+        description:
+          type: "string"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int32"
+        length:
+          type: "integer"
+          format: "int32"
+        height:
+          type: "integer"
+          format: "int32"
+        volume:
+          type: "number"
+          format: "double"
+      required:
+        - "productId"
+        - "categoryId"
+        - "title"
+        - "width"
+        - "length"
+        - "height"
+        - "volume"
+    ProductExResponse:
+      type: "object"
+      properties:
+        productId:
+          type: "integer"
+          format: "int64"
+        categoryId:
+          type: "integer"
+          format: "int32"
+        categoryTitle:
+          type: "string"
+        title:
+          type: "string"
+        description:
+          type: "string"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int32"
+        length:
+          type: "integer"
+          format: "int32"
+        height:
+          type: "integer"
+          format: "int32"
+        volume:
+          type: "number"
+          format: "double"
+      required:
+        - "productId"
+        - "categoryId"
+        - "title"
+        - "width"
+        - "length"
+        - "height"
+        - "volume"
+    CreateProductRequest:
+      type: "object"
+      properties:
+        categoryId:
+          type: "integer"
+          format: "int32"
+        title:
+          type: "string"
+        description:
+          type: "string"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int32"
+        length:
+          type: "integer"
+          format: "int32"
+        height:
+          type: "integer"
+          format: "int32"
+      required:
+        - "categoryId"
+        - "title"
+        - "width"
+        - "length"
+        - "height"
+    UpdateProductRequest:
+      type: "object"
+      properties:
+        categoryId:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        title:
+          type: "string"
+          nullable: true
+        description:
+          type: "string"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        length:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        height:
+          type: "integer"
+          format: "int32"
+          nullable: true
+    SupplierResponse:
+      type: "object"
+      properties:
+        supplierId:
+          type: "integer"
+          format: "int32"
+        name:
+          type: "string"
+        phone:
+          type: "string"
+        email:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+          nullable: true
+      required:
+        - "supplierId"
+        - "name"
+        - "phone"
+    CreateSupplierRequest:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+        phone:
+          type: "string"
+        email:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+          nullable: true
+      required:
+        - "name"
+        - "phone"
+    UpdateSupplierRequest:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+          nullable: true
+        phone:
+          type: "string"
+          nullable: true
+        email:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+          nullable: true
+    SupplyResponse:
+      type: "object"
+      properties:
+        supplyId:
+          type: "integer"
+          format: "int64"
+        supplierId:
+          type: "integer"
+          format: "int32"
+        supplierName:
+          type: "string"
+        warehouseId:
+          type: "integer"
+          format: "int32"
+        warehouseTitle:
+          type: "string"
+        status:
+          $ref: "#/components/schemas/SupplyStatus"
+        totalPrice:
+          type: "integer"
+          format: "int64"
+        createdAt:
+          type: "string"
+        updatedAt:
+          type: "string"
+      required:
+        - "supplyId"
+        - "supplierId"
+        - "supplierName"
+        - "warehouseId"
+        - "status"
+        - "totalPrice"
+        - "createdAt"
+        - "updatedAt"
+    CreateSupplyRequest:
+      type: "object"
+      properties:
+        supplierId:
+          type: "integer"
+          format: "int32"
+        warehouseId:
+          type: "integer"
+          format: "int32"
+      required:
+        - "supplierId"
+        - "warehouseId"
+    SupplyProductDetailResponse:
+      type: "object"
+      properties:
+        supplyProductId:
+          type: "integer"
+          format: "int64"
+        quantity:
+          type: "integer"
+          format: "int32"
+        unitPrice:
+          type: "integer"
+          format: "int64"
+        product:
+          $ref: "#/components/schemas/ProductResponse"
+      required:
+        - "supplyProductId"
+        - "quantity"
+        - "unitPrice"
+        - "product"
+    SupplyDetailResponse:
+      type: "object"
+      properties:
+        supplyId:
+          type: "integer"
+          format: "int64"
+        supplierId:
+          type: "integer"
+          format: "int32"
+        supplierName:
+          type: "string"
+        warehouseId:
+          type: "integer"
+          format: "int32"
+        warehouseTitle:
+          type: "string"
+        status:
+          $ref: "#/components/schemas/SupplyStatus"
+        totalPrice:
+          type: "integer"
+          format: "int64"
+        createdAt:
+          type: "string"
+        updatedAt:
+          type: "string"
+        products:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/SupplyProductDetailResponse"
+      required:
+        - "supplyId"
+        - "supplierId"
+        - "supplierName"
+        - "warehouseId"
+        - "status"
+        - "totalPrice"
+        - "createdAt"
+        - "updatedAt"
+        - "products"
+    AddSupplyProductRequest:
+      type: "object"
+      properties:
+        productId:
+          type: "integer"
+          format: "int64"
+        quantity:
+          type: "integer"
+          format: "int32"
+        unitPrice:
+          type: "integer"
+          format: "int64"
+      required:
+        - "productId"
+        - "quantity"
+        - "unitPrice"
+    SupplyProductResponse:
+      type: "object"
+      properties:
+        supplyId:
+          type: "integer"
+          format: "int64"
+        productId:
+          type: "integer"
+          format: "int64"
+        quantity:
+          type: "integer"
+          format: "int32"
+        unitPrice:
+          type: "integer"
+          format: "int64"
+        totalPrice:
+          type: "integer"
+          format: "int64"
+      required:
+        - "supplyId"
+        - "productId"
+        - "quantity"
+        - "unitPrice"
+        - "totalPrice"
+    UpdateSupplyStatusRequest:
+      type: "object"
+      properties:
+        status:
+          $ref: "#/components/schemas/SupplyStatus"
+      required:
+        - "status"
+    WarehouseResponse:
+      type: "object"
+      properties:
+        warehouseId:
+          type: "integer"
+          format: "int32"
+        title:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+        capacity:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int64"
+        length:
+          type: "integer"
+          format: "int64"
+        height:
+          type: "integer"
+          format: "int64"
+      required:
+        - "warehouseId"
+        - "address"
+        - "width"
+        - "length"
+        - "height"
+    CreateWarehouseRequest:
+      type: "object"
+      properties:
+        title:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+        capacity:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int64"
+        length:
+          type: "integer"
+          format: "int64"
+        height:
+          type: "integer"
+          format: "int64"
+      required:
+        - "address"
+        - "width"
+        - "length"
+        - "height"
+    UpdateWarehouseRequest:
+      type: "object"
+      properties:
+        title:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+          nullable: true
+        capacity:
+          type: "integer"
+          format: "int32"
+          nullable: true
+        width:
+          type: "integer"
+          format: "int64"
+          nullable: true
+        length:
+          type: "integer"
+          format: "int64"
+          nullable: true
+        height:
+          type: "integer"
+          format: "int64"
+          nullable: true
+    WarehouseProductDetailResponse:
+      type: "object"
+      properties:
+        warehouseProductId:
+          type: "integer"
+          format: "int64"
+        quantity:
+          type: "integer"
+          format: "int32"
+        product:
+          $ref: "#/components/schemas/ProductResponse"
+      required:
+        - "warehouseProductId"
+        - "quantity"
+        - "product"
+    WarehouseCategoryGroupResponse:
+      type: "object"
+      properties:
+        categoryId:
+          type: "integer"
+          format: "int32"
+        categoryTitle:
+          type: "string"
+        products:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/WarehouseProductDetailResponse"
+      required:
+        - "categoryId"
+        - "categoryTitle"
+        - "products"
+    GlobalStatsResponse:
+      type: "object"
+      properties:
+        totalWarehouses:
+          type: "integer"
+          format: "int32"
+        totalQuantity:
+          type: "integer"
+          format: "int32"
+        totalPrice:
+          type: "integer"
+          format: "int64"
+        suppliesByStatus:
+          type: "object"
+          additionalProperties:
+            type: "integer"
+            format: "int32"
+      required:
+        - "totalWarehouses"
+        - "totalQuantity"
+        - "totalPrice"
+        - "suppliesByStatus"
+    SupplyStatus:
+      type: "string"
+      enum:
+        - "CREATED"
+        - "PENDING"
+        - "CONFIRMED"
+        - "SHIPPED"
+        - "DELIVERED"
+        - "COMPLETED"
+        - "CANCELLED"
