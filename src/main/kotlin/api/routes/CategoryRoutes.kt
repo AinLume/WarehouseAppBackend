@@ -5,6 +5,7 @@ import api.dto.UpdateCategoryRequest
 import api.mappers.toResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -15,6 +16,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
+import plugins.UserIdPrincipal
 import service.CategoryService
 
 fun Route.categoryRoutes() {
@@ -26,15 +28,19 @@ fun Route.categoryRoutes() {
 
             // GET /categories — список всех категорий
             get {
-                val categories = service.getAllCategories()
+                val principal = call.principal<UserIdPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+                val categories = service.getAllCategories(principal.userId)
 
                 call.respond(HttpStatusCode.OK, categories.map { it.toResponse() })
             }
 
             // POST /categories — создать категорию
             post {
+                val principal = call.principal<UserIdPrincipal>()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
                 val request = call.receive<CreateCategoryRequest>()
-                val category = service.createCategory(request.title)
+                val category = service.createCategory(request.title, principal.userId)
 
                 call.respond(
                     HttpStatusCode.Created,
@@ -46,12 +52,14 @@ fun Route.categoryRoutes() {
 
                 // GET /categories/{id}
                 get {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
                     val id = call.parameters["id"]?.toIntOrNull()
                         ?: return@get call.respond(
                             HttpStatusCode.BadRequest,
                             mapOf("error" to "Invalid id")
                         )
-                    val category = service.getCategoryById(id)
+                    val category = service.getCategoryById(id, principal.userId)
 
                     call.respond(
                         HttpStatusCode.OK,
@@ -61,13 +69,15 @@ fun Route.categoryRoutes() {
 
                 // PUT /categories/{id}
                 put {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@put call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
                     val id = call.parameters["id"]?.toIntOrNull()
                         ?: return@put call.respond(
                             HttpStatusCode.BadRequest,
                             mapOf("error" to "Invalid id")
                         )
                     val request = call.receive<UpdateCategoryRequest>()
-                    val category = service.updateCategoryById(id, request.title)
+                    val category = service.updateCategoryById(id, request.title, principal.userId)
 
                     call.respond(
                         HttpStatusCode.OK,
@@ -77,12 +87,14 @@ fun Route.categoryRoutes() {
 
                 // DELETE /categories/{id}
                 delete {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
                     val id = call.parameters["id"]?.toIntOrNull()
                         ?: return@delete call.respond(
                             HttpStatusCode.BadRequest,
                             mapOf("error" to "Invalid id")
                         )
-                    service.deleteCategoryById(id)
+                    service.deleteCategoryById(id, principal.userId)
 
                     call.respond(HttpStatusCode.NoContent)
                 }
