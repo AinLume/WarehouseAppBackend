@@ -12,6 +12,7 @@ import domain.model.Category
 import domain.model.Product
 import domain.model.Supplier
 import domain.model.Supply
+import domain.model.SupplyEnriched
 import domain.model.SupplyProduct
 import domain.model.SupplyProductDetail
 import domain.model.SupplyStatus
@@ -144,9 +145,15 @@ abstract class BaseServiceTest {
         createdAt = "2026-03-11T10:00:00Z",
         updatedAt = "2026-03-11T10:00:00Z"
     )
+    val testSupplyEnriched = SupplyEnriched(
+        supply = testSupply,
+        warehouseId = 1,
+        warehouseTitle = "Main Warehouse",
+        supplierName = "Test Supplier"
+    )
     val testSupplies = listOf(
-        testSupply,
-        testSupply.copy(supplyId = 2L, status = SupplyStatus.PENDING)
+        testSupplyEnriched,
+        testSupplyEnriched.copy(supply = testSupply.copy(supplyId = 2L, status = SupplyStatus.PENDING))
     )
     val testSupplyProduct = SupplyProduct(
         supplyProductId = 1L,

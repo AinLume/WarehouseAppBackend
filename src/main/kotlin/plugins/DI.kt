@@ -23,7 +23,7 @@ val appModule = module(createdAtStart = true) {
     single { UserRepositoryImpl() }
 
     single { CategoryService(get()) }
-    single { ProductService(get(), get()) }
+    single { ProductService(get()) }
     single { SupplierService(get()) }
     single { WarehouseService(get(), get()) }
     single { SupplyService(

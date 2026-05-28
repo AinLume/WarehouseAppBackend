@@ -16,5 +16,5 @@ openapi:
   spec: "openapi/docs-v1.yml"
 
 jwt:
-  publicKeyPath: "src/main/resources/key/publicKey.pem"
-  privateKeyPath: "src/main/resources/key/privateKey.pem"
+  publicKeyPath: "src/main/resources/keys/publicKey.pem"
+  privateKeyPath: "src/main/resources/keys/privateKey.pem"

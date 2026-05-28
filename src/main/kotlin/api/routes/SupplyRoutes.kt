@@ -8,6 +8,7 @@ import api.mappers.toResponse
 import domain.model.SupplyStatus
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -18,6 +19,7 @@ import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import org.koin.ktor.ext.inject
+import plugins.UserIdPrincipal
 import service.SupplyService
 import utils.enumFromStringOrThrow
 
@@ -30,12 +32,15 @@ fun Route.supplyRoutes() {
 
             // GET /supplies?warehouseId=1&status=CREATED
             get {
+                val principal = call.principal<UserIdPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                 val warehouseId = call.request.queryParameters["warehouseId"]?.toIntOrNull()
                 val status = enumFromStringOrThrow<SupplyStatus>(
                     call.request.queryParameters["status"]
                 )
 
-                val supplies = service.getAllSupplies(warehouseId, status)
+                val supplies = service.getAllSupplies(principal.userId, warehouseId, status)
                 call.respond(HttpStatusCode.OK,
                     supplies.map { it.supply.toResponse(
                         it.warehouseId, it.warehouseTitle, it.supplierName
@@ -44,8 +49,11 @@ fun Route.supplyRoutes() {
 
             // POST /supplies — создать поставку
             post {
+                val principal = call.principal<UserIdPrincipal>()
+                    ?: return@post call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                 val request = call.receive<CreateSupplyRequest>()
-                val supply = service.createSupply(request)
+                val supply = service.createSupply(request, principal.userId)
 
                 call.respond(HttpStatusCode.Created,
                     supply.supply.toResponse(
@@ -59,17 +67,23 @@ fun Route.supplyRoutes() {
 
                 // GET /supplies/{id} — детальная инфа + список товаров
                 get {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                     val id = call.parameters["id"]?.toLongOrNull()
                         ?: return@get call.respond(
                             HttpStatusCode.BadRequest,
                             mapOf("error" to "Invalid id"))
 
-                    val detail = service.getSupplyDetails(id)
+                    val detail = service.getSupplyDetails(id, principal.userId)
                     call.respond(HttpStatusCode.OK, detail)
                 }
 
                 // PATCH /supplies/{id}/status — изменить статус
                 patch("/status") {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@patch call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                     val id = call.parameters["id"]?.toLongOrNull()
                         ?: return@patch call.respond(
                             HttpStatusCode.BadRequest,
@@ -84,7 +98,7 @@ fun Route.supplyRoutes() {
                         )
 
                     val newStatus = enumFromStringOrThrow<SupplyStatus>(request.status)!!
-                    val supply = service.updateSupplyStatus(id, newStatus)
+                    val supply = service.updateSupplyStatus(id, newStatus, principal.userId)
 
                     call.respond(HttpStatusCode.OK,
                         supply.supply.toResponse(
@@ -97,30 +111,39 @@ fun Route.supplyRoutes() {
 
                 // DELETE /supplies/{id} — удалить (только CREATED или CANCELLED)
                 delete {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                     val id = call.parameters["id"]?.toLongOrNull()
                         ?: return@delete call.respond(
                             HttpStatusCode.BadRequest,
                             mapOf("error" to "Invalid id")
                         )
 
-                    service.deleteSupplyById(id)
+                    service.deleteSupplyById(id, principal.userId)
 
                     call.respond(HttpStatusCode.NoContent)
                 }
 
                 // POST /supplies/{id}/products — добавить товар в поставку
                 post("/products") {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@post call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                     val id = call.parameters["id"]?.toLongOrNull()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Invalid id"))
                     val request = call.receive<AddSupplyProductRequest>()
 
-                    val product = service.addProductToSupply(id, request)
+                    val product = service.addProductToSupply(id, request, principal.userId)
 
                     call.respond(HttpStatusCode.Created, product.toResponse())
                 }
 
                 // DELETE /supplies/{id}/products/{productId} — убрать товар из поставки
                 delete("/products/{productId}") {
+                    val principal = call.principal<UserIdPrincipal>()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
+
                     val id = call.parameters["id"]?.toLongOrNull()
                         ?: return@delete call.respond(
                             HttpStatusCode.BadRequest,
@@ -132,7 +155,7 @@ fun Route.supplyRoutes() {
                             mapOf("error" to "Invalid productId")
                         )
 
-                    service.removeProduct(id, productId)
+                    service.removeProduct(id, productId, principal.userId)
 
                     call.respond(HttpStatusCode.NoContent)
                 }
