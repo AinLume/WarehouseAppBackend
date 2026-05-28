@@ -14,14 +14,16 @@ class WarehouseService(
     private val warehouseProductRepository: WarehouseProductRepository
 ) {
 
-    suspend fun getAllWarehouses(): List<Warehouse> =
-        repository.findAll()
+    // ============== Public methods (with userId check) ==============
 
-    suspend fun getWarehouseById(id: Int): Warehouse =
-        repository.findById(id)
+    suspend fun getAllWarehouses(userId: Int): List<Warehouse> =
+        repository.findAllByUserId(userId)
+
+    suspend fun getWarehouseById(id: Int, userId: Int): Warehouse =
+        repository.findByIdAndUserId(id, userId)
             ?: throw NoSuchElementException("Warehouse $id not found")
 
-    suspend fun createWarehouse(dto: CreateWarehouseRequest): Warehouse {
+    suspend fun createWarehouse(dto: CreateWarehouseRequest, userId: Int): Warehouse {
         if (dto.address.isBlank())
             throw IllegalArgumentException("Address must not be blank")
 
@@ -31,13 +33,12 @@ class WarehouseService(
             dto.capacity,
             dto.width,
             dto.length,
-            dto.height
+            dto.height,
+            userId
         )
     }
 
-    suspend fun updateWarehouseById(id: Int, dto: UpdateWarehouseRequest): Warehouse {
-        getWarehouseById(id)
-
+    suspend fun updateWarehouseById(id: Int, dto: UpdateWarehouseRequest, userId: Int): Warehouse {
         if (dto.address != null && dto.address.isBlank())
             throw IllegalArgumentException("Address must not be blank")
 
@@ -48,34 +49,57 @@ class WarehouseService(
             dto.capacity,
             dto.width,
             dto.length,
-            dto.height
+            dto.height,
+            userId
         ) ?: throw NoSuchElementException("Warehouse $id not found")
     }
 
-    suspend fun deleteWarehouseById(id: Int) {
+    suspend fun deleteWarehouseById(id: Int, userId: Int) {
+        if (!repository.hasAccess(id, userId))
+            throw NoSuchElementException("Warehouse $id not found")
+
         if (repository.hasProducts(id))
             throw IllegalArgumentException("Cannot delete warehouse with products")
 
-        val deleted = repository.delete(id)
+        val deleted = repository.delete(id, userId)
         if (!deleted) throw NoSuchElementException("Warehouse $id not found")
     }
 
-    suspend fun getProductsByWarehouseId(warehouseId: Int): List<WarehouseProductDetail> {
-        getWarehouseById(warehouseId)
+    suspend fun getProductsByWarehouseId(warehouseId: Int, userId: Int): List<WarehouseProductDetail> {
+        getWarehouseById(warehouseId, userId)
         return warehouseProductRepository.findByWarehouseWithDetails(warehouseId)
     }
 
-    suspend fun getProductsGroupedByCategory(warehouseId: Int): Map<Category, List<WarehouseProductDetail>> {
-        getWarehouseById(warehouseId)
+    suspend fun getProductsGroupedByCategory(warehouseId: Int, userId: Int): Map<Category, List<WarehouseProductDetail>> {
+        getWarehouseById(warehouseId, userId)
         return warehouseProductRepository.findByWarehouseGroupedByCategory(warehouseId)
     }
 
-    suspend fun getWarehouseStats(warehouseId: Int): WarehouseStats {
-        getWarehouseById(warehouseId)
+    suspend fun getWarehouseStats(warehouseId: Int, userId: Int): WarehouseStats {
+        getWarehouseById(warehouseId, userId)
         return warehouseProductRepository.getTotalStats(warehouseId)
     }
 
-    suspend fun getWarehouseIdBySupplyId(supplyId: Long): Int =
+    suspend fun getWarehouseIdBySupplyId(supplyId: Long, userId: Int): Int {
+        val warehouse = repository.findBySupplyId(supplyId)
+            ?: throw NoSuchElementException("Warehouse for supply $supplyId not found")
+
+        if (!repository.hasAccess(warehouse.warehouseId, userId))
+            throw NoSuchElementException("Warehouse ${warehouse.warehouseId} not found")
+
+        return warehouse.warehouseId
+    }
+
+    suspend fun hasAccess(warehouseId: Int, userId: Int): Boolean =
+        repository.hasAccess(warehouseId, userId)
+
+
+    // Внутренние методы без проверки userId
+    suspend fun getWarehouseByIdInternal(id: Int): Warehouse =
+        repository.findById(id)
+            ?: throw NoSuchElementException("Warehouse $id not found")
+
+    suspend fun getWarehouseIdBySupplyIdInternal(supplyId: Long): Int =
         repository.findBySupplyId(supplyId)?.warehouseId
             ?: throw NoSuchElementException("Warehouse for supply $supplyId not found")
 }

@@ -4,6 +4,7 @@ import api.dto.CreateCategoryRequest
 import api.dto.UpdateCategoryRequest
 import api.mappers.toResponse
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -20,69 +21,71 @@ fun Route.categoryRoutes() {
 
     val service by application.inject<CategoryService>()
 
-    route("/categories") {
+    authenticate("jwt-auth") {
+        route("/categories") {
 
-        // GET /categories — список всех категорий
-        get {
-            val categories = service.getAllCategories()
-
-            call.respond(HttpStatusCode.OK, categories.map { it.toResponse() })
-        }
-
-        // POST /categories — создать категорию
-        post {
-            val request = call.receive<CreateCategoryRequest>()
-            val category = service.createCategory(request.title)
-
-            call.respond(
-                HttpStatusCode.Created,
-                category.toResponse()
-            )
-        }
-
-        route("/{id}") {
-
-            // GET /categories/{id}
+            // GET /categories — список всех категорий
             get {
-                val id = call.parameters["id"]?.toIntOrNull()
-                    ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        mapOf("error" to "Invalid id")
-                    )
-                val category = service.getCategoryById(id)
+                val categories = service.getAllCategories()
+
+                call.respond(HttpStatusCode.OK, categories.map { it.toResponse() })
+            }
+
+            // POST /categories — создать категорию
+            post {
+                val request = call.receive<CreateCategoryRequest>()
+                val category = service.createCategory(request.title)
 
                 call.respond(
-                    HttpStatusCode.OK,
+                    HttpStatusCode.Created,
                     category.toResponse()
                 )
             }
 
-            // PUT /categories/{id}
-            put {
-                val id = call.parameters["id"]?.toIntOrNull()
-                    ?: return@put call.respond(
-                        HttpStatusCode.BadRequest,
-                        mapOf("error" to "Invalid id")
+            route("/{id}") {
+
+                // GET /categories/{id}
+                get {
+                    val id = call.parameters["id"]?.toIntOrNull()
+                        ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("error" to "Invalid id")
+                        )
+                    val category = service.getCategoryById(id)
+
+                    call.respond(
+                        HttpStatusCode.OK,
+                        category.toResponse()
                     )
-                val request = call.receive<UpdateCategoryRequest>()
-                val category = service.updateCategoryById(id, request.title)
+                }
 
-                call.respond(
-                    HttpStatusCode.OK,
-                    category.toResponse()
-                )
-            }
+                // PUT /categories/{id}
+                put {
+                    val id = call.parameters["id"]?.toIntOrNull()
+                        ?: return@put call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("error" to "Invalid id")
+                        )
+                    val request = call.receive<UpdateCategoryRequest>()
+                    val category = service.updateCategoryById(id, request.title)
 
-            // DELETE /categories/{id}
-            delete {
-                val id = call.parameters["id"]?.toIntOrNull()
-                    ?: return@delete call.respond(
-                        HttpStatusCode.BadRequest,
-                        mapOf("error" to "Invalid id")
+                    call.respond(
+                        HttpStatusCode.OK,
+                        category.toResponse()
                     )
-                service.deleteCategoryById(id)
+                }
 
-                call.respond(HttpStatusCode.NoContent)
+                // DELETE /categories/{id}
+                delete {
+                    val id = call.parameters["id"]?.toIntOrNull()
+                        ?: return@delete call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("error" to "Invalid id")
+                        )
+                    service.deleteCategoryById(id)
+
+                    call.respond(HttpStatusCode.NoContent)
+                }
             }
         }
     }

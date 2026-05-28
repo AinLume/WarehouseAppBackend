@@ -1,5 +1,6 @@
 package plugins
 
+import api.routes.authRoutes
 import api.routes.categoryRoutes
 import api.routes.productRoutes
 import api.routes.supplierRoutes
@@ -16,6 +17,7 @@ fun Application.configureRouting() {
     routing {
         swaggerUI(path = "swagger", swaggerFile = "openapi/docs-v1.yml")
         route("/api/v1") {
+            authRoutes()
             categoryRoutes()
             productRoutes()
             supplierRoutes()

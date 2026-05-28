@@ -2,14 +2,17 @@ package plugins
 
 import data.repository.*
 import domain.repository.*
+import data.repository.UserRepositoryImpl
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import org.koin.dsl.module
+import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 import service.*
+import utils.SecretLoader
 
-val appModule = module {
+val appModule = module(createdAtStart = true) {
 
     single<CategoryRepository> { CategoryRepositoryImpl() }
     single<ProductRepository> { ProductRepositoryImpl() }
@@ -17,6 +20,7 @@ val appModule = module {
     single<WarehouseRepository> { WarehouseRepositoryImpl() }
     single<SupplyRepository> { SupplyRepositoryImpl() }
     single<WarehouseProductRepository> { WarehouseProductRepositoryImpl() }
+    single { UserRepositoryImpl() }
 
     single { CategoryService(get()) }
     single { ProductService(get(), get()) }
@@ -37,8 +41,29 @@ val appModule = module {
 }
 
 fun Application.configureDI() {
+    val config = environment.config
+
+    val jwtModule = module {
+        single {
+            val secret = try {
+                val keyPath = config.property("jwt.privateKeyPath").getString()
+                SecretLoader.load(keyPath)
+            } catch (e: Exception) {
+                "fallback-secret-key-change-in-production"
+            }
+            JwtService(
+                secret = secret,
+                issuer = "warehouse-app",
+                audience = "warehouse-api"
+            )
+        }
+        single { AuthService(get(), get()) }
+    }
+
     install(Koin) {
         slf4jLogger()
-        modules(appModule)
+        modules(appModule, jwtModule)
     }
+
+    configureAuthentication(get())
 }

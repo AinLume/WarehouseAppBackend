@@ -44,7 +44,7 @@ class SupplyService(
 
     suspend fun createSupply(dto: CreateSupplyRequest): SupplyEnriched {
         supplierService.getSupplierById(dto.supplierId)
-        warehouseService.getWarehouseById(dto.warehouseId)
+        warehouseService.getWarehouseByIdInternal(dto.warehouseId)
 
         return repository.create(dto.supplierId, dto.warehouseId)
     }
@@ -104,7 +104,7 @@ class SupplyService(
     }
 
     private suspend fun completeSupply(supplyId: Long) {
-        val warehouseId = warehouseService.getWarehouseIdBySupplyId(supplyId)
+        val warehouseId = warehouseService.getWarehouseIdBySupplyIdInternal(supplyId)
 
         log.info("Complete supply: wsId: $warehouseId, sId: $supplyId")
 

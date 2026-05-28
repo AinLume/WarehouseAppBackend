@@ -1,5 +1,6 @@
 package data.repository
 
+import data.table.UserWarehouseTable
 import data.table.WarehouseProductTable
 import data.table.WarehouseSupplyTable
 import data.table.WarehouseTable
@@ -7,6 +8,7 @@ import domain.model.Warehouse
 import domain.repository.WarehouseRepository
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -37,6 +39,24 @@ class WarehouseRepositoryImpl : WarehouseRepository {
             .singleOrNull()
     }
 
+    override suspend fun findByIdAndUserId(id: Int, userId: Int): Warehouse? = dbQuery {
+        (WarehouseTable innerJoin UserWarehouseTable)
+            .selectAll()
+            .where {
+                (WarehouseTable.warehouseId eq id) and
+                (UserWarehouseTable.userId eq userId)
+            }
+            .map(::rowToWarehouse)
+            .singleOrNull()
+    }
+
+    override suspend fun findAllByUserId(userId: Int): List<Warehouse> = dbQuery {
+        (WarehouseTable innerJoin UserWarehouseTable)
+            .selectAll()
+            .where { UserWarehouseTable.userId eq userId }
+            .map(::rowToWarehouse)
+    }
+
     override suspend fun create(
         title: String?,
         address: String,
@@ -44,6 +64,7 @@ class WarehouseRepositoryImpl : WarehouseRepository {
         width: Long,
         length: Long,
         height: Long,
+        userId: Int
     ): Warehouse = dbQuery {
         val id = WarehouseTable.insert {
             it[WarehouseTable.title] = title
@@ -53,6 +74,11 @@ class WarehouseRepositoryImpl : WarehouseRepository {
             it[WarehouseTable.length] = length
             it[WarehouseTable.height] = height
         } get WarehouseTable.warehouseId
+
+        UserWarehouseTable.insert {
+            it[UserWarehouseTable.userId] = userId
+            it[UserWarehouseTable.warehouseId] = id
+        }
 
         Warehouse(id, title, address, capacity, width, length, height)
     }
@@ -64,8 +90,11 @@ class WarehouseRepositoryImpl : WarehouseRepository {
         capacity: Int?,
         width: Long?,
         length: Long?,
-        height: Long?
+        height: Long?,
+        userId: Int
     ): Warehouse? = dbQuery {
+        if (!hasAccess(id, userId)) return@dbQuery null
+
         val updated = WarehouseTable.update(
             where = { WarehouseTable.warehouseId eq id }
         ) {
@@ -79,7 +108,15 @@ class WarehouseRepositoryImpl : WarehouseRepository {
         if (updated == 0) null else findById(id)
     }
 
-    override suspend fun delete(id: Int): Boolean = dbQuery {
+    override suspend fun delete(id: Int, userId: Int): Boolean = dbQuery {
+        val hasAccess = hasAccess(id, userId)
+        if (!hasAccess) return@dbQuery false
+
+        UserWarehouseTable.deleteWhere {
+            (UserWarehouseTable.warehouseId eq id) and
+            (UserWarehouseTable.userId eq userId)
+        }
+
         WarehouseTable.deleteWhere { warehouseId eq id } > 0
     }
 
@@ -96,5 +133,15 @@ class WarehouseRepositoryImpl : WarehouseRepository {
             .where { WarehouseSupplyTable.supplyId eq supplyId }
             .map(::rowToWarehouse)
             .singleOrNull()
+    }
+
+    override suspend fun hasAccess(warehouseId: Int, userId: Int): Boolean = dbQuery {
+        UserWarehouseTable
+            .selectAll()
+            .where {
+                (UserWarehouseTable.warehouseId eq warehouseId) and
+                (UserWarehouseTable.userId eq userId)
+            }
+            .count() > 0
     }
 }

@@ -8,6 +8,27 @@ data class Category(
     val title: String
 )
 
+@Serializable
+data class User(
+    val id: Int,
+    val username: String,
+    val email: String,
+    val role: String
+)
+
+enum class UserRole(val displayName: String) {
+    ADMIN("Owner"),
+    MANAGER("Manager"),
+    WORKER("Worker");
+
+    companion object {
+        fun fromString(role: String): UserRole {
+            return entries.find { it.name.equals(role, ignoreCase = true) }
+                ?: throw IllegalArgumentException("Unknown role: $role")
+        }
+    }
+}
+
 /**
  * Длинна, ширина и высота в сантиметрах
  * */
