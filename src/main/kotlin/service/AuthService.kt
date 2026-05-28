@@ -36,7 +36,7 @@ class AuthService(
         val role = try {
             UserRole.fromString(request.role).name
         } catch (e: IllegalArgumentException) {
-            UserRole.WORKER.name
+            UserRole.OWNER.name
         }
 
         val passwordHash = BCrypt.hashpw(request.password, BCrypt.gensalt())

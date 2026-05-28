@@ -17,7 +17,7 @@ data class User(
 )
 
 enum class UserRole(val displayName: String) {
-    ADMIN("Owner"),
+    OWNER("Owner"),
     MANAGER("Manager"),
     WORKER("Worker");
 
