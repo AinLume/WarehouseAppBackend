@@ -75,7 +75,7 @@ class AuthService(
     }
 
     suspend fun refreshToken(refreshToken: String): AuthResponse {
-        val verifier = JWT.require(Algorithm.HMAC256(jwtService.secret))
+        val verifier = JWT.require(jwtService.verificationAlgorithm)
             .withAudience(jwtService.audience)
             .withIssuer(jwtService.issuer)
             .build()

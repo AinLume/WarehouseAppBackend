@@ -45,14 +45,23 @@ fun Application.configureDI() {
 
     val jwtModule = module {
         single {
-            val secret = try {
-                val keyPath = config.property("jwt.privateKeyPath").getString()
+            val privateKey = try {
+                val keyPath = System.getenv("PRIVATE_KEY_PATH") ?: config.property("jwt.privateKeyPath").getString()
                 SecretLoader.load(keyPath)
             } catch (e: Exception) {
-                "fallback-secret-key-change-in-production"
+                throw IllegalStateException("Failed to load private key", e)
             }
+
+            val publicKey = try {
+                val keyPath = System.getenv("PUBLIC_KEY_PATH") ?: config.property("jwt.publicKeyPath").getString()
+                SecretLoader.load(keyPath)
+            } catch (e: Exception) {
+                throw IllegalStateException("Failed to load public key", e)
+            }
+
             JwtService(
-                secret = secret,
+                privateKeyContent = privateKey,
+                publicKeyContent = publicKey,
                 issuer = "warehouse-app",
                 audience = "warehouse-api"
             )

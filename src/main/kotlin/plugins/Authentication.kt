@@ -1,7 +1,6 @@
 package plugins
 
 import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
@@ -15,7 +14,7 @@ fun Application.configureAuthentication(jwtService: JwtService) {
     install(Authentication) {
         jwt("jwt-auth") {
             val jwtVerifier = JWT
-                .require(Algorithm.HMAC256(jwtService.secret))
+                .require(jwtService.verificationAlgorithm)
                 .withAudience(jwtService.audience)
                 .withIssuer(jwtService.issuer)
                 .build()
