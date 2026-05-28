@@ -34,6 +34,11 @@ dependencies {
     implementation("io.ktor:ktor-server-netty:$ktor_version")
     implementation("io.ktor:ktor-server-config-yaml:$ktor_version")
 
+    // Auth
+    implementation("io.ktor:ktor-server-auth-jwt:${ktor_version}")
+    implementation("io.ktor:ktor-server-auth:${ktor_version}")
+    implementation("org.mindrot:jbcrypt:0.4")
+
     // Docs
     implementation("io.ktor:ktor-server-swagger:$ktor_version")
 
