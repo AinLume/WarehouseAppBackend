@@ -239,9 +239,20 @@ class SupplyRepositoryImpl : SupplyRepository {
     }
 
     override suspend fun countByStatusByUserId(userId: Int): Map<String, Int> = dbQuery {
-        (SupplyTable innerJoin WarehouseSupplyTable innerJoin UserWarehouseTable)
+        val userSupplyIds = WarehouseSupplyTable
+            .innerJoin(UserWarehouseTable,
+                onColumn = { WarehouseSupplyTable.warehouseId },
+                otherColumn = { UserWarehouseTable.warehouseId }
+            )
             .selectAll()
             .where { UserWarehouseTable.userId eq userId }
+            .map { it[WarehouseSupplyTable.supplyId] }
+
+        if (userSupplyIds.isEmpty()) return@dbQuery emptyMap()
+
+        SupplyTable
+            .selectAll()
+            .where { SupplyTable.supplyId inList userSupplyIds }
             .map { it[SupplyTable.status] }
             .groupingBy { it }
             .eachCount()

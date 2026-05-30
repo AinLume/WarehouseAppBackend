@@ -196,22 +196,30 @@ class WarehouseProductRepositoryImpl : WarehouseProductRepository {
     }
 
     override suspend fun getTotalQuantityByUserId(userId: Int): Int = dbQuery {
-        (WarehouseProductTable innerJoin UserWarehouseTable)
+        val userWarehouseIds = UserWarehouseTable
             .selectAll()
-            .where {
-                (WarehouseProductTable.warehouseId eq UserWarehouseTable.warehouseId) and
-                (UserWarehouseTable.userId eq userId)
-            }
+            .where { UserWarehouseTable.userId eq userId }
+            .map { it[UserWarehouseTable.warehouseId] }
+
+        if (userWarehouseIds.isEmpty()) return@dbQuery 0
+
+        WarehouseProductTable
+            .selectAll()
+            .where { WarehouseProductTable.warehouseId inList userWarehouseIds }
             .sumOf { it[WarehouseProductTable.quantity] }
     }
 
     override suspend fun getTotalPriceByUserId(userId: Int): Long = dbQuery {
-        (WarehouseProductTable innerJoin UserWarehouseTable)
+        val userWarehouseIds = UserWarehouseTable
             .selectAll()
-            .where {
-                (WarehouseProductTable.warehouseId eq UserWarehouseTable.warehouseId) and
-                (UserWarehouseTable.userId eq userId)
-            }
+            .where { UserWarehouseTable.userId eq userId }
+            .map { it[UserWarehouseTable.warehouseId] }
+
+        if (userWarehouseIds.isEmpty()) return@dbQuery 0L
+
+        WarehouseProductTable
+            .selectAll()
+            .where { WarehouseProductTable.warehouseId inList userWarehouseIds }
             .sumOf { it[WarehouseProductTable.totalPrice] }
     }
 }
