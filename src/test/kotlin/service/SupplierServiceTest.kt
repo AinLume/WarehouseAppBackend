@@ -24,35 +24,35 @@ class SupplierServiceTest : BaseServiceTest() {
             mockSupplier(1, "TechSupplier", "+79001234567", "tech@supplier.com"),
             mockSupplier(2, "FoodSupplier", "+79001234568", "food@supplier.com")
         )
-        coEvery { supplierRepository.findAll() } returns expected
+        coEvery { supplierRepository.findAllByUserId(1) } returns expected
         initService()
 
-        val result = service.getAllSuppliers()
+        val result = service.getAllSuppliers(1)
 
         assertEquals(2, result.size)
         assertEquals("TechSupplier", result[0].name)
-        coVerify { supplierRepository.findAll() }
+        coVerify { supplierRepository.findAllByUserId(1) }
     }
 
     @Test
     fun `getSupplierById should return supplier when exists`() = runTest {
         val expected = mockSupplier(1, "TechSupplier")
-        coEvery { supplierRepository.findById(1) } returns expected
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns expected
         initService()
 
-        val result = service.getSupplierById(1)
+        val result = service.getSupplierById(1, 1)
 
         assertEquals("TechSupplier", result.name)
-        coVerify { supplierRepository.findById(1) }
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
     }
 
     @Test
     fun `getSupplierById should throw NoSuchElementException when not found`() = runTest {
-        coEvery { supplierRepository.findById(1) } returns null
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns null
         initService()
 
         try {
-            service.getSupplierById(1)
+            service.getSupplierById(1, 1)
             fail("Expected NoSuchElementException")
         } catch (e: NoSuchElementException) {
         }
@@ -68,15 +68,15 @@ class SupplierServiceTest : BaseServiceTest() {
         )
         val expected = mockSupplier(1, "TechSupplier", "+79001234567", "tech@supplier.com")
         coEvery {
-            supplierRepository.create("TechSupplier", "+79001234567", "tech@supplier.com", "Moscow")
+            supplierRepository.create("TechSupplier", "+79001234567", "tech@supplier.com", "Moscow", 1)
         } returns expected
         initService()
 
-        val result = service.createSupplier(dto)
+        val result = service.createSupplier(dto, 1)
 
         assertEquals("TechSupplier", result.name)
         coVerify {
-            supplierRepository.create("TechSupplier", "+79001234567", "tech@supplier.com", "Moscow")
+            supplierRepository.create("TechSupplier", "+79001234567", "tech@supplier.com", "Moscow", 1)
         }
     }
 
@@ -90,15 +90,15 @@ class SupplierServiceTest : BaseServiceTest() {
         )
         val expected = mockSupplier(1, "TechSupplier", "+79001234567", null)
         coEvery {
-            supplierRepository.create("TechSupplier", "+79001234567", null, "Moscow")
+            supplierRepository.create("TechSupplier", "+79001234567", null, "Moscow", 1)
         } returns expected
         initService()
 
-        val result = service.createSupplier(dto)
+        val result = service.createSupplier(dto, 1)
 
         assertEquals("TechSupplier", result.name)
         coVerify {
-            supplierRepository.create("TechSupplier", "+79001234567", null, "Moscow")
+            supplierRepository.create("TechSupplier", "+79001234567", null, "Moscow", 1)
         }
     }
 
@@ -108,12 +108,12 @@ class SupplierServiceTest : BaseServiceTest() {
         initService()
 
         try {
-            service.createSupplier(dto)
+            service.createSupplier(dto, 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Name must not be blank", e.message)
         }
-        coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -122,12 +122,12 @@ class SupplierServiceTest : BaseServiceTest() {
         initService()
 
         try {
-            service.createSupplier(dto)
+            service.createSupplier(dto, 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Invalid phone format", e.message)
         }
-        coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -135,11 +135,11 @@ class SupplierServiceTest : BaseServiceTest() {
         val dto = CreateSupplierRequest(name = "TechSupplier", phone = "80001234567")
         val expected = mockSupplier(1, "TechSupplier", "80001234567", null)
         coEvery {
-            supplierRepository.create("TechSupplier", "80001234567", null, null)
+            supplierRepository.create("TechSupplier", "80001234567", null, null, 1)
         } returns expected
         initService()
 
-        val result = service.createSupplier(dto)
+        val result = service.createSupplier(dto, 1)
 
         assertEquals("80001234567", result.phone)
     }
@@ -150,7 +150,7 @@ class SupplierServiceTest : BaseServiceTest() {
         initService()
 
         try {
-            service.createSupplier(dto)
+            service.createSupplier(dto, 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Invalid email format", e.message)
@@ -167,45 +167,45 @@ class SupplierServiceTest : BaseServiceTest() {
         )
         val existing = mockSupplier(1, "TechSupplier")
         val expected = mockSupplier(1, "Updated Supplier", "+79001234568", "updated@supplier.com")
-        coEvery { supplierRepository.findById(1) } returns existing
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns existing
         coEvery {
-            supplierRepository.update(1, "Updated Supplier", "+79001234568", "updated@supplier.com", "New Address")
+            supplierRepository.update(1, "Updated Supplier", "+79001234568", "updated@supplier.com", "New Address", 1)
         } returns expected
         initService()
 
-        val result = service.updateSupplierById(1, dto)
+        val result = service.updateSupplierById(1, dto, 1)
 
         assertEquals("Updated Supplier", result.name)
-        coVerify { supplierRepository.findById(1) }
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
         coVerify {
-            supplierRepository.update(1, "Updated Supplier", "+79001234568", "updated@supplier.com", "New Address")
+            supplierRepository.update(1, "Updated Supplier", "+79001234568", "updated@supplier.com", "New Address", 1)
         }
     }
 
     @Test
     fun `updateSupplierById should throw IllegalArgumentException when name is blank`() = runTest {
         val existing = mockSupplier(1, "TechSupplier")
-        coEvery { supplierRepository.findById(1) } returns existing
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns existing
         initService()
 
         try {
-            service.updateSupplierById(1, UpdateSupplierRequest(name = "   "))
+            service.updateSupplierById(1, UpdateSupplierRequest(name = "   "), 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Name must not be blank", e.message)
         }
-        coVerify { supplierRepository.findById(1) }
-        coVerify(exactly = 0) { supplierRepository.update(any(), any(), any(), any(), any()) }
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
+        coVerify(exactly = 0) { supplierRepository.update(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `updateSupplierById should throw IllegalArgumentException when phone format is invalid`() = runTest {
         val existing = mockSupplier(1, "TechSupplier")
-        coEvery { supplierRepository.findById(1) } returns existing
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns existing
         initService()
 
         try {
-            service.updateSupplierById(1, UpdateSupplierRequest(phone = "invalid"))
+            service.updateSupplierById(1, UpdateSupplierRequest(phone = "invalid"), 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Invalid phone format", e.message)
@@ -215,11 +215,11 @@ class SupplierServiceTest : BaseServiceTest() {
     @Test
     fun `updateSupplierById should throw IllegalArgumentException when email format is invalid`() = runTest {
         val existing = mockSupplier(1, "TechSupplier")
-        coEvery { supplierRepository.findById(1) } returns existing
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns existing
         initService()
 
         try {
-            service.updateSupplierById(1, UpdateSupplierRequest(email = "invalid-email"))
+            service.updateSupplierById(1, UpdateSupplierRequest(email = "invalid-email"), 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Invalid email format", e.message)
@@ -229,52 +229,55 @@ class SupplierServiceTest : BaseServiceTest() {
     @Test
     fun `updateSupplierById should throw NoSuchElementException when not found`() = runTest {
         val dto = UpdateSupplierRequest(name = "New Name")
-        coEvery { supplierRepository.findById(1) } returns null
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns null
         initService()
 
         try {
-            service.updateSupplierById(1, dto)
+            service.updateSupplierById(1, dto, 1)
             fail("Expected NoSuchElementException")
         } catch (e: NoSuchElementException) {
         }
-        coVerify { supplierRepository.findById(1) }
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
     }
 
     @Test
     fun `deleteSupplierById should delete supplier when exists and has no supplies`() = runTest {
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns mockSupplier(1)
         coEvery { supplierRepository.hasSupplies(1) } returns false
-        coEvery { supplierRepository.delete(1) } returns true
+        coEvery { supplierRepository.delete(1, 1) } returns true
         initService()
 
-        service.deleteSupplierById(1)
+        service.deleteSupplierById(1, 1)
 
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
         coVerify { supplierRepository.hasSupplies(1) }
-        coVerify { supplierRepository.delete(1) }
+        coVerify { supplierRepository.delete(1, 1) }
     }
 
     @Test
     fun `deleteSupplierById should throw IllegalArgumentException when has supplies`() = runTest {
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns mockSupplier(1)
         coEvery { supplierRepository.hasSupplies(1) } returns true
         initService()
 
         try {
-            service.deleteSupplierById(1)
+            service.deleteSupplierById(1, 1)
             fail("Expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
             assertEquals("Cannot delete supplier with existing supplies", e.message)
         }
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
         coVerify { supplierRepository.hasSupplies(1) }
-        coVerify(exactly = 0) { supplierRepository.delete(any()) }
+        coVerify(exactly = 0) { supplierRepository.delete(any(), any()) }
     }
 
     @Test
     fun `deleteSupplierById should throw NoSuchElementException when not found`() = runTest {
-        coEvery { supplierRepository.hasSupplies(1) } returns false
-        coEvery { supplierRepository.delete(1) } returns false
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns null
         initService()
 
         try {
-            service.deleteSupplierById(1)
+            service.deleteSupplierById(1, 1)
             fail("Expected NoSuchElementException")
         } catch (e: NoSuchElementException) {
         }

@@ -27,4 +27,5 @@ interface SupplyRepository {
     suspend fun removeProduct(supplyId: Long, productId: Long): Boolean
 
     suspend fun countByStatus(): Map<String, Int>
+    suspend fun countByStatusByUserId(userId: Int): Map<String, Int>
 }

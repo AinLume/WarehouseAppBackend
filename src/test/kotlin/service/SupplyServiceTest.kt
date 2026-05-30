@@ -83,7 +83,7 @@ class SupplyServiceTest : BaseServiceTest() {
         val warehouse = mockWarehouse(1, "Main Warehouse")
         val expected = mockSupplyEnriched(mockSupply(1), 1, "Main Warehouse", "TechSupplier")
 
-        coEvery { supplierRepository.findById(1) } returns supplier
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns supplier
         coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns warehouse
         coEvery { supplyRepository.create(1, 1, 1) } returns expected
         initService()
@@ -91,7 +91,7 @@ class SupplyServiceTest : BaseServiceTest() {
         val result = service.createSupply(dto, 1)
 
         assertEquals(1L, result.supply.supplyId)
-        coVerify { supplierRepository.findById(1) }
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
         coVerify { warehouseRepository.findByIdAndUserId(1, 1) }
         coVerify { supplyRepository.create(1, 1, 1) }
     }
@@ -99,7 +99,7 @@ class SupplyServiceTest : BaseServiceTest() {
     @Test
     fun `createSupply should throw NoSuchElementException when supplier not found`() = runTest {
         val dto = CreateSupplyRequest(supplierId = 1, warehouseId = 1)
-        coEvery { supplierRepository.findById(1) } returns null
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns null
         initService()
 
         try {
@@ -112,7 +112,7 @@ class SupplyServiceTest : BaseServiceTest() {
     @Test
     fun `createSupply should throw NoSuchElementException when warehouse not found`() = runTest {
         val dto = CreateSupplyRequest(supplierId = 1, warehouseId = 1)
-        coEvery { supplierRepository.findById(1) } returns mockSupplier(1)
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns mockSupplier(1)
         coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns null
         initService()
 

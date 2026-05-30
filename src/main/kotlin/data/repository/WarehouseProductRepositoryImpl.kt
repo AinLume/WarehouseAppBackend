@@ -2,6 +2,7 @@ package data.repository
 
 import data.table.CategoryTable
 import data.table.ProductTable
+import data.table.UserWarehouseTable
 import data.table.WarehouseProductTable
 import domain.model.Category
 import domain.model.Product
@@ -191,6 +192,26 @@ class WarehouseProductRepositoryImpl : WarehouseProductRepository {
 
     override suspend fun getTotalPriceAll(): Long = dbQuery {
         WarehouseProductTable.selectAll()
+            .sumOf { it[WarehouseProductTable.totalPrice] }
+    }
+
+    override suspend fun getTotalQuantityByUserId(userId: Int): Int = dbQuery {
+        (WarehouseProductTable innerJoin UserWarehouseTable)
+            .selectAll()
+            .where {
+                (WarehouseProductTable.warehouseId eq UserWarehouseTable.warehouseId) and
+                (UserWarehouseTable.userId eq userId)
+            }
+            .sumOf { it[WarehouseProductTable.quantity] }
+    }
+
+    override suspend fun getTotalPriceByUserId(userId: Int): Long = dbQuery {
+        (WarehouseProductTable innerJoin UserWarehouseTable)
+            .selectAll()
+            .where {
+                (WarehouseProductTable.warehouseId eq UserWarehouseTable.warehouseId) and
+                (UserWarehouseTable.userId eq userId)
+            }
             .sumOf { it[WarehouseProductTable.totalPrice] }
     }
 }

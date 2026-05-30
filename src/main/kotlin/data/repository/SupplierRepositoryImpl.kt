@@ -2,10 +2,12 @@ package data.repository
 
 import data.table.SupplierTable
 import data.table.SupplyTable
+import data.table.UserSupplierTable
 import domain.model.Supplier
 import domain.repository.SupplierRepository
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -34,11 +36,30 @@ class SupplierRepositoryImpl : SupplierRepository {
             .singleOrNull()
     }
 
+    override suspend fun findAllByUserId(userId: Int): List<Supplier> = dbQuery {
+        (SupplierTable innerJoin UserSupplierTable)
+            .selectAll()
+            .where { UserSupplierTable.userId eq userId }
+            .map(::rowToSupplier)
+    }
+
+    override suspend fun findByIdAndUserId(id: Int, userId: Int): Supplier? = dbQuery {
+        (SupplierTable innerJoin UserSupplierTable)
+            .selectAll()
+            .where {
+                (SupplierTable.supplierId eq id) and
+                (UserSupplierTable.userId eq userId)
+            }
+            .map(::rowToSupplier)
+            .singleOrNull()
+    }
+
     override suspend fun create(
         name: String,
         phone: String,
         email: String?,
-        address: String?
+        address: String?,
+        userId: Int
     ): Supplier = dbQuery {
 
         val id = SupplierTable.insert {
@@ -48,6 +69,11 @@ class SupplierRepositoryImpl : SupplierRepository {
             it[SupplierTable.address] = address
         } get SupplierTable.supplierId
 
+        UserSupplierTable.insert {
+            it[UserSupplierTable.userId] = userId
+            it[UserSupplierTable.supplierId] = id
+        }
+
         Supplier(id, name, phone, email, address)
     }
 
@@ -56,8 +82,10 @@ class SupplierRepositoryImpl : SupplierRepository {
         name: String?,
         phone: String?,
         email: String?,
-        address: String?
+        address: String?,
+        userId: Int
     ): Supplier? = dbQuery {
+        if (!hasAccess(id, userId)) return@dbQuery null
 
         val updated = SupplierTable.update(
             where = { SupplierTable.supplierId eq id }
@@ -71,14 +99,31 @@ class SupplierRepositoryImpl : SupplierRepository {
         if (updated == 0) null else findById(id)
     }
 
-    override suspend fun delete(id: Int): Boolean = dbQuery {
-        SupplierTable.deleteWhere { SupplierTable.supplierId eq id } != 0
+    override suspend fun delete(id: Int, userId: Int): Boolean = dbQuery {
+        if (!hasAccess(id, userId)) return@dbQuery false
+
+        UserSupplierTable.deleteWhere {
+            (UserSupplierTable.supplierId eq id) and
+            (UserSupplierTable.userId eq userId)
+        }
+
+        SupplierTable.deleteWhere { SupplierTable.supplierId eq id } > 0
     }
 
     override suspend fun hasSupplies(id: Int): Boolean = dbQuery {
         SupplyTable
             .selectAll()
             .where { SupplyTable.supplierId eq id }
+            .count() > 0
+    }
+
+    override suspend fun hasAccess(supplierId: Int, userId: Int): Boolean = dbQuery {
+        UserSupplierTable
+            .selectAll()
+            .where {
+                (UserSupplierTable.supplierId eq supplierId) and
+                (UserSupplierTable.userId eq userId)
+            }
             .count() > 0
     }
 }

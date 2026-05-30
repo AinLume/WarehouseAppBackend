@@ -238,6 +238,15 @@ class SupplyRepositoryImpl : SupplyRepository {
             .eachCount()
     }
 
+    override suspend fun countByStatusByUserId(userId: Int): Map<String, Int> = dbQuery {
+        (SupplyTable innerJoin WarehouseSupplyTable innerJoin UserWarehouseTable)
+            .selectAll()
+            .where { UserWarehouseTable.userId eq userId }
+            .map { it[SupplyTable.status] }
+            .groupingBy { it }
+            .eachCount()
+    }
+
     override suspend fun hasAccess(supplyId: Long, userId: Int): Boolean = dbQuery {
         WarehouseSupplyTable
             .innerJoin(UserWarehouseTable,

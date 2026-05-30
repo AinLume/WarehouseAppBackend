@@ -56,7 +56,7 @@ fun Route.warehouseRoutes() {
             get("/stats") {
                 val principal = call.principal<UserIdPrincipal>()
                     ?: return@get call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
-                val stats = statsService.getGlobalStats()
+                val stats = statsService.getGlobalStats(principal.userId)
 
                 log.info("Stats: $stats")
 

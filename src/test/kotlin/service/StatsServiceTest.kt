@@ -28,13 +28,13 @@ class StatsServiceTest : BaseServiceTest() {
             "COMPLETED" to 10
         )
 
-        coEvery { warehouseRepository.findAll() } returns warehouses
-        coEvery { warehouseProductRepository.getTotalQuantityAll() } returns 500
-        coEvery { warehouseProductRepository.getTotalPriceAll() } returns 100000L
-        coEvery { supplyRepository.countByStatus() } returns suppliesByStatus
+        coEvery { warehouseRepository.findAllByUserId(1) } returns warehouses
+        coEvery { warehouseProductRepository.getTotalQuantityByUserId(1) } returns 500
+        coEvery { warehouseProductRepository.getTotalPriceByUserId(1) } returns 100000L
+        coEvery { supplyRepository.countByStatusByUserId(1) } returns suppliesByStatus
         initService()
 
-        val result = service.getGlobalStats()
+        val result = service.getGlobalStats(1)
 
         assertEquals(2, result.totalWarehouses)
         assertEquals(500, result.totalQuantity)
@@ -42,21 +42,21 @@ class StatsServiceTest : BaseServiceTest() {
         assertEquals(3, result.suppliesByStatus.size)
         assertEquals(5, result.suppliesByStatus["CREATED"])
 
-        coVerify { warehouseRepository.findAll() }
-        coVerify { warehouseProductRepository.getTotalQuantityAll() }
-        coVerify { warehouseProductRepository.getTotalPriceAll() }
-        coVerify { supplyRepository.countByStatus() }
+        coVerify { warehouseRepository.findAllByUserId(1) }
+        coVerify { warehouseProductRepository.getTotalQuantityByUserId(1) }
+        coVerify { warehouseProductRepository.getTotalPriceByUserId(1) }
+        coVerify { supplyRepository.countByStatusByUserId(1) }
     }
 
     @Test
     fun `getGlobalStats should return zero values when no data`() = runTest {
-        coEvery { warehouseRepository.findAll() } returns emptyList()
-        coEvery { warehouseProductRepository.getTotalQuantityAll() } returns 0
-        coEvery { warehouseProductRepository.getTotalPriceAll() } returns 0L
-        coEvery { supplyRepository.countByStatus() } returns emptyMap()
+        coEvery { warehouseRepository.findAllByUserId(1) } returns emptyList()
+        coEvery { warehouseProductRepository.getTotalQuantityByUserId(1) } returns 0
+        coEvery { warehouseProductRepository.getTotalPriceByUserId(1) } returns 0L
+        coEvery { supplyRepository.countByStatusByUserId(1) } returns emptyMap()
         initService()
 
-        val result = service.getGlobalStats()
+        val result = service.getGlobalStats(1)
 
         assertEquals(0, result.totalWarehouses)
         assertEquals(0, result.totalQuantity)
@@ -67,13 +67,13 @@ class StatsServiceTest : BaseServiceTest() {
     @Test
     fun `getGlobalStats should handle empty supplies status map`() = runTest {
         val warehouses = listOf(mockWarehouse(1))
-        coEvery { warehouseRepository.findAll() } returns warehouses
-        coEvery { warehouseProductRepository.getTotalQuantityAll() } returns 100
-        coEvery { warehouseProductRepository.getTotalPriceAll() } returns 5000L
-        coEvery { supplyRepository.countByStatus() } returns emptyMap()
+        coEvery { warehouseRepository.findAllByUserId(1) } returns warehouses
+        coEvery { warehouseProductRepository.getTotalQuantityByUserId(1) } returns 100
+        coEvery { warehouseProductRepository.getTotalPriceByUserId(1) } returns 5000L
+        coEvery { supplyRepository.countByStatusByUserId(1) } returns emptyMap()
         initService()
 
-        val result = service.getGlobalStats()
+        val result = service.getGlobalStats(1)
 
         assertEquals(1, result.totalWarehouses)
         assertEquals(100, result.totalQuantity)

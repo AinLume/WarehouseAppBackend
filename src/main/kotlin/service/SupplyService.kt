@@ -43,7 +43,7 @@ class SupplyService(
     }
 
     suspend fun createSupply(dto: CreateSupplyRequest, userId: Int): SupplyEnriched {
-        supplierService.getSupplierById(dto.supplierId)
+        supplierService.getSupplierById(dto.supplierId, userId)
         warehouseService.getWarehouseById(dto.warehouseId, userId)
 
         return repository.create(dto.supplierId, dto.warehouseId, userId)
