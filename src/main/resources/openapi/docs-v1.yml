@@ -747,14 +747,17 @@ paths:
   /api/v1/products:
     get:
       tags: [Products]
-      description: "GET /products?categoryId=1 — список, опциональный фильтр по ка\
-        тегории"
+      description: "GET /products?categoryId=1&search=xxx — список, опциональный фильтр по категории и поиск"
       parameters:
         - name: "categoryId"
           in: "query"
           required: false
           schema:
             type: "integer"
+        - name: "search"
+          in: "query"
+          required: false
+          schema: "string"
       responses:
         "200":
           description: "OK"
