@@ -10,11 +10,11 @@ class StatsService(
     private val supplyRepository: SupplyRepository,
     private val warehouseProductRepository: WarehouseProductRepository
 ) {
-    suspend fun getGlobalStats(): GlobalStatsResponse {
-        val totalWarehouses = warehouseRepository.findAll().size
-        val totalQuantity = warehouseProductRepository.getTotalQuantityAll()
-        val totalPrice = warehouseProductRepository.getTotalPriceAll()
-        val suppliesByStatus = supplyRepository.countByStatus()
+    suspend fun getGlobalStats(userId: Int): GlobalStatsResponse {
+        val totalWarehouses = warehouseRepository.findAllByUserId(userId).size
+        val totalQuantity = warehouseProductRepository.getTotalQuantityByUserId(userId)
+        val totalPrice = warehouseProductRepository.getTotalPriceByUserId(userId)
+        val suppliesByStatus = supplyRepository.countByStatusByUserId(userId)
 
         return GlobalStatsResponse(
             totalWarehouses = totalWarehouses,

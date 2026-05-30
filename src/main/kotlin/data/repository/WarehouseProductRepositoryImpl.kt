@@ -2,6 +2,7 @@ package data.repository
 
 import data.table.CategoryTable
 import data.table.ProductTable
+import data.table.UserWarehouseTable
 import data.table.WarehouseProductTable
 import domain.model.Category
 import domain.model.Product
@@ -191,6 +192,34 @@ class WarehouseProductRepositoryImpl : WarehouseProductRepository {
 
     override suspend fun getTotalPriceAll(): Long = dbQuery {
         WarehouseProductTable.selectAll()
+            .sumOf { it[WarehouseProductTable.totalPrice] }
+    }
+
+    override suspend fun getTotalQuantityByUserId(userId: Int): Int = dbQuery {
+        val userWarehouseIds = UserWarehouseTable
+            .selectAll()
+            .where { UserWarehouseTable.userId eq userId }
+            .map { it[UserWarehouseTable.warehouseId] }
+
+        if (userWarehouseIds.isEmpty()) return@dbQuery 0
+
+        WarehouseProductTable
+            .selectAll()
+            .where { WarehouseProductTable.warehouseId inList userWarehouseIds }
+            .sumOf { it[WarehouseProductTable.quantity] }
+    }
+
+    override suspend fun getTotalPriceByUserId(userId: Int): Long = dbQuery {
+        val userWarehouseIds = UserWarehouseTable
+            .selectAll()
+            .where { UserWarehouseTable.userId eq userId }
+            .map { it[UserWarehouseTable.warehouseId] }
+
+        if (userWarehouseIds.isEmpty()) return@dbQuery 0L
+
+        WarehouseProductTable
+            .selectAll()
+            .where { WarehouseProductTable.warehouseId inList userWarehouseIds }
             .sumOf { it[WarehouseProductTable.totalPrice] }
     }
 }

@@ -1,389 +1,363 @@
 package service
 
+import api.dto.AddSupplyProductRequest
+import api.dto.CreateSupplyRequest
+import domain.model.Supply
 import domain.model.SupplyStatus
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.fail
 
 class SupplyServiceTest : BaseServiceTest() {
 
-    // getAllSupplies 
-    @Test
-    fun getAllSupplies_shouldReturnAllSupplies() = runTest {
-        coEvery { supplyRepository.findAll(null, null) } returns testSupplies
+    private lateinit var service: SupplyService
 
-        val result = supplyService.getAllSupplies(null, null)
-
-        assertEquals(testSupplies, result)
-        coVerify(exactly = 1) { supplyRepository.findAll(null, null) }
+    private fun initService() {
+        service = SupplyService(
+            supplyRepository,
+            SupplierService(supplierRepository),
+            WarehouseService(warehouseRepository, warehouseProductRepository),
+            ProductService(productRepository),
+            warehouseProductRepository
+        )
     }
 
     @Test
-    fun getAllSupplies_shouldReturnEmptyList() = runTest {
-        coEvery { supplyRepository.findAll(null, null) } returns emptyList()
+    fun `getAllSupplies should return list of supplies`() = runTest {
+        val expected = listOf(
+            mockSupplyEnriched(mockSupply(1), 1, "Main Warehouse", "TechSupplier"),
+            mockSupplyEnriched(mockSupply(2), 2, "Secondary Warehouse", "FoodSupplier")
+        )
+        coEvery { supplyRepository.findAllByUserId(1, null, null) } returns expected
+        initService()
 
-        val result = supplyService.getAllSupplies(null, null)
+        val result = service.getAllSupplies(1, null, null)
 
-        assertTrue(result.isEmpty())
+        assertEquals(2, result.size)
+        coVerify { supplyRepository.findAllByUserId(1, null, null) }
     }
 
     @Test
-    fun getAllSupplies_shouldFilterByWarehouseAndStatus() = runTest {
-        coEvery {
-            supplyRepository.findAll(1, SupplyStatus.CREATED)
-        } returns listOf(testSupply)
+    fun `getAllSupplies should filter by warehouseId and status`() = runTest {
+        val expected = listOf(mockSupplyEnriched(mockSupply(1), 1, "Main Warehouse", "TechSupplier"))
+        coEvery { supplyRepository.findAllByUserId(1, 1, SupplyStatus.PENDING) } returns expected
+        initService()
 
-        val result = supplyService.getAllSupplies(1, SupplyStatus.CREATED)
+        val result = service.getAllSupplies(1, 1, SupplyStatus.PENDING)
 
         assertEquals(1, result.size)
-        assertEquals(SupplyStatus.CREATED, result[0].status)
-    }
-
-    // getSupplyById
-    @Test
-    fun getSupplyById_shouldReturnSupply() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-
-        val result = supplyService.getSupplyById(1L)
-
-        assertEquals(testSupply, result)
+        coVerify { supplyRepository.findAllByUserId(1, 1, SupplyStatus.PENDING) }
     }
 
     @Test
-    fun getSupplyById_shouldThrowWhenNotFound() = runTest {
-        coEvery { supplyRepository.findById(99L) } returns null
+    fun `getSupplyById should return supply when exists and belongs to user`() = runTest {
+        val expected = mockSupplyEnriched(mockSupply(1), 1, "Main Warehouse", "TechSupplier")
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns expected
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            supplyService.getSupplyById(99L)
+        val result = service.getSupplyById(1, 1)
+
+        assertEquals(1L, result.supply.supplyId)
+        coVerify { supplyRepository.findByIdAndUserId(1, 1) }
+    }
+
+    @Test
+    fun `getSupplyById should throw NoSuchElementException when not found`() = runTest {
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns null
+        initService()
+
+        try {
+            service.getSupplyById(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 
-    // getProductsBySupplyId
     @Test
-    fun getProductsBySupplyId_shouldReturnProducts() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.findProductsDetails(1L) } returns listOf(testSupplyProductDetail)
+    fun `createSupply should create supply with valid supplier and warehouse`() = runTest {
+        val dto = CreateSupplyRequest(supplierId = 1, warehouseId = 1)
+        val supplier = mockSupplier(1, "TechSupplier")
+        val warehouse = mockWarehouse(1, "Main Warehouse")
+        val expected = mockSupplyEnriched(mockSupply(1), 1, "Main Warehouse", "TechSupplier")
 
-        val result = supplyService.getProductsBySupplyId(1L)
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns supplier
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns warehouse
+        coEvery { supplyRepository.create(1, 1, 1) } returns expected
+        initService()
 
-        assertEquals(1, result.size)
-        assertEquals(testSupplyProductDetail, result[0])
+        val result = service.createSupply(dto, 1)
+
+        assertEquals(1L, result.supply.supplyId)
+        coVerify { supplierRepository.findByIdAndUserId(1, 1) }
+        coVerify { warehouseRepository.findByIdAndUserId(1, 1) }
+        coVerify { supplyRepository.create(1, 1, 1) }
     }
 
     @Test
-    fun getProductsBySupplyId_shouldThrowWhenSupplyNotFound() = runTest {
-        coEvery { supplyRepository.findById(99L) } returns null
+    fun `createSupply should throw NoSuchElementException when supplier not found`() = runTest {
+        val dto = CreateSupplyRequest(supplierId = 1, warehouseId = 1)
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns null
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            supplyService.getProductsBySupplyId(99L)
+        try {
+            service.createSupply(dto, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { supplyRepository.findProducts(any()) }
     }
 
     @Test
-    fun getProductsBySupplyId_shouldReturnEmptyWhenNoProducts() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.findProductsDetails(1L) } returns emptyList()
+    fun `createSupply should throw NoSuchElementException when warehouse not found`() = runTest {
+        val dto = CreateSupplyRequest(supplierId = 1, warehouseId = 1)
+        coEvery { supplierRepository.findByIdAndUserId(1, 1) } returns mockSupplier(1)
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns null
+        initService()
 
-        val result = supplyService.getProductsBySupplyId(1L)
-
-        assertTrue(result.isEmpty())
-    }
-
-    // createSupply
-    @Test
-    fun createSupply_shouldReturnCreatedSupply() = runTest {
-        coEvery { supplierRepository.findById(1) } returns testSupplier
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-        coEvery { supplyRepository.create(1, 1) } returns testSupply
-
-        val result = supplyService.createSupply(createSupplyRequest)
-
-        assertEquals(SupplyStatus.CREATED, result.status)
-        assertEquals(1, result.supplierId)
-        coVerify(exactly = 1) { supplyRepository.create(1, 1) }
-    }
-
-    @Test
-    fun createSupply_shouldThrowWhenSupplierNotFound() = runTest {
-        val request = createSupplyRequest.copy(supplierId = 99)
-        coEvery { supplierRepository.findById(99) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            supplyService.createSupply(request)
+        try {
+            service.createSupply(dto, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { supplyRepository.create(any(), any()) }
     }
 
     @Test
-    fun createSupply_shouldThrowWhenWarehouseNotFound() = runTest {
-        val request = createSupplyRequest.copy(warehouseId = 99)
-        coEvery { supplierRepository.findById(1) } returns testSupplier
-        coEvery { warehouseRepository.findById(99) } returns null
+    fun `updateSupplyStatus should update status for valid transition`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.PENDING)
+        val enriched = mockSupplyEnriched(supply, 1)
+        val updated = mockSupplyEnriched(mockSupply(1, status = SupplyStatus.CONFIRMED), 1)
 
-        assertFailsWith<NoSuchElementException> {
-            supplyService.createSupply(request)
-        }
-        coVerify(exactly = 0) { supplyRepository.create(any(), any()) }
-    }
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { supplyRepository.updateStatus(1, SupplyStatus.CONFIRMED) } returns updated
+        initService()
 
-    // updateSupplyStatus
-    @Test
-    fun updateSupplyStatus_shouldTransitionFromCreatedToPending() = runTest {
-        val updated = testSupply.copy(status = SupplyStatus.PENDING)
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.updateStatus(1L, SupplyStatus.PENDING) } returns updated
+        val result = service.updateSupplyStatus(1, SupplyStatus.CONFIRMED, 1)
 
-        val result = supplyService.updateSupplyStatus(1L, SupplyStatus.PENDING)
-
-        assertEquals(SupplyStatus.PENDING, result.status)
-        coVerify(exactly = 1) { supplyRepository.updateStatus(1L, SupplyStatus.PENDING) }
+        assertEquals(SupplyStatus.CONFIRMED, result.supply.status)
+        coVerify { supplyRepository.findByIdAndUserId(1, 1) }
+        coVerify { supplyRepository.updateStatus(1, SupplyStatus.CONFIRMED) }
     }
 
     @Test
-    fun updateSupplyStatus_shouldTransitionFromCreatedToCancelled() = runTest {
-        val updated = testSupply.copy(status = SupplyStatus.CANCELLED)
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.updateStatus(1L, SupplyStatus.CANCELLED) } returns updated
+    fun `updateSupplyStatus should throw IllegalArgumentException for invalid transition`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        initService()
 
-        val result = supplyService.updateSupplyStatus(1L, SupplyStatus.CANCELLED)
-
-        assertEquals(SupplyStatus.CANCELLED, result.status)
-    }
-
-    @Test
-    fun updateSupplyStatus_shouldThrowWhenSupplyNotFound() = runTest {
-        coEvery { supplyRepository.findById(99L) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            supplyService.updateSupplyStatus(99L, SupplyStatus.PENDING)
+        try {
+            service.updateSupplyStatus(1, SupplyStatus.COMPLETED, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Cannot transition from CREATED to COMPLETED", e.message)
         }
         coVerify(exactly = 0) { supplyRepository.updateStatus(any(), any()) }
     }
 
     @Test
-    fun updateSupplyStatus_shouldThrowOnInvalidTransition() = runTest {
-        // CREATED → COMPLETED недопустимо
-        coEvery { supplyRepository.findById(1L) } returns testSupply
+    fun `addProductToSupply should add product when supply is in CREATED status`() = runTest {
+        val dto = AddSupplyProductRequest(productId = 1, quantity = 10, unitPrice = 1000L)
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
+        val product = mockProduct(1)
+        val expected = mockSupplyProduct(1, 1, 1, 10, 1000L)
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.updateSupplyStatus(1L, SupplyStatus.COMPLETED)
-        }
-        coVerify(exactly = 0) { supplyRepository.updateStatus(any(), any()) }
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { productRepository.findByIdAndUserId(1, 1) } returns product
+        coEvery { supplyRepository.addProduct(1, 1, 10, 1000L) } returns expected
+        coEvery { supplyRepository.updateTotalPrice(1) } returns Unit
+        initService()
+
+        val result = service.addProductToSupply(1, dto, 1)
+
+        assertEquals(10, result.quantity)
+        coVerify { supplyRepository.findByIdAndUserId(1, 1) }
+        coVerify { productRepository.findByIdAndUserId(1, 1) }
+        coVerify { supplyRepository.addProduct(1, 1, 10, 1000L) }
+        coVerify { supplyRepository.updateTotalPrice(1) }
     }
 
     @Test
-    fun updateSupplyStatus_shouldThrowOnTransitionFromCancelled() = runTest {
-        val cancelled = testSupply.copy(status = SupplyStatus.CANCELLED)
-        coEvery { supplyRepository.findById(1L) } returns cancelled
+    fun `addProductToSupply should throw IllegalArgumentException when supply not in CREATED status`() = runTest {
+        val dto = AddSupplyProductRequest(productId = 1, quantity = 10, unitPrice = 1000L)
+        val supply = mockSupply(1, status = SupplyStatus.CONFIRMED)
+        val enriched = mockSupplyEnriched(supply, 1)
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.updateSupplyStatus(1L, SupplyStatus.PENDING)
-        }
-        coVerify(exactly = 0) { supplyRepository.updateStatus(any(), any()) }
-    }
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        initService()
 
-    @Test
-    fun updateSupplyStatus_shouldCompleteSupplyAndUpdateWarehouse() = runTest {
-        val deliveredSupply = testSupply.copy(status = SupplyStatus.DELIVERED)
-        val completed = testSupply.copy(status = SupplyStatus.COMPLETED)
-
-        coEvery { supplyRepository.findById(1L) } returns deliveredSupply
-        coEvery { supplyRepository.findProducts(1L) } returns listOf(testSupplyProduct)
-        coEvery { warehouseRepository.findBySupplyId(1L) } returns testWarehouse
-        coEvery { warehouseProductRepository.upsertAll(1, any()) } returns Unit
-        coEvery { supplyRepository.updateStatus(1L, SupplyStatus.COMPLETED) } returns completed
-
-        val result = supplyService.updateSupplyStatus(1L, SupplyStatus.COMPLETED)
-
-        assertEquals(SupplyStatus.COMPLETED, result.status)
-        coVerify(exactly = 1) { warehouseProductRepository.upsertAll(1, any()) }
-        coVerify(exactly = 1) { supplyRepository.findProducts(1L) }
-    }
-
-    @Test
-    fun updateSupplyStatus_shouldThrowWhenWarehouseNotFoundOnComplete() = runTest {
-        val deliveredSupply = testSupply.copy(status = SupplyStatus.DELIVERED)
-
-        coEvery { supplyRepository.findById(1L) } returns deliveredSupply
-        coEvery { supplyRepository.findProducts(1L) } returns listOf(testSupplyProduct)
-        coEvery { warehouseRepository.findBySupplyId(1L) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            supplyService.updateSupplyStatus(1L, SupplyStatus.COMPLETED)
-        }
-        coVerify(exactly = 0) { warehouseProductRepository.upsertAll(any(), any()) }
-    }
-
-    // addProductToSupply
-    @Test
-    fun addProductToSupply_shouldReturnAddedProduct() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { productRepository.findById(1L) } returns testProduct
-        coEvery { supplyRepository.addProduct(1L, 1L, 10, 5000L) } returns testSupplyProduct
-        coEvery { supplyRepository.updateTotalPrice(1L) } returns Unit
-
-        val result = supplyService.addProductToSupply(1L, addSupplyProductRequest)
-
-        assertEquals(testSupplyProduct, result)
-        coVerify(exactly = 1) { supplyRepository.addProduct(1L, 1L, 10, 5000L) }
-        coVerify(exactly = 1) { supplyRepository.updateTotalPrice(1L) }
-    }
-
-    @Test
-    fun addProductToSupply_shouldThrowWhenSupplyNotFound() = runTest {
-        coEvery { supplyRepository.findById(99L) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            supplyService.addProductToSupply(99L, addSupplyProductRequest)
+        try {
+            service.addProductToSupply(1, dto, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Can only add products to supply with status CREATED", e.message)
         }
         coVerify(exactly = 0) { supplyRepository.addProduct(any(), any(), any(), any()) }
     }
 
     @Test
-    fun addProductToSupply_shouldThrowWhenSupplyNotInCreatedStatus() = runTest {
-        val pendingSupply = testSupply.copy(status = SupplyStatus.PENDING)
-        coEvery { supplyRepository.findById(1L) } returns pendingSupply
+    fun `addProductToSupply should throw IllegalArgumentException when quantity is not positive`() = runTest {
+        val dto = AddSupplyProductRequest(productId = 1, quantity = 0, unitPrice = 1000L)
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
+        val product = mockProduct(1)
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.addProductToSupply(1L, addSupplyProductRequest)
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { productRepository.findByIdAndUserId(1, 1) } returns product
+        initService()
+
+        try {
+            service.addProductToSupply(1, dto, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Quantity must be positive", e.message)
         }
-        coVerify(exactly = 0) { supplyRepository.addProduct(any(), any(), any(), any()) }
     }
 
     @Test
-    fun addProductToSupply_shouldThrowWhenProductNotFound() = runTest {
-        val request = addSupplyProductRequest.copy(productId = 99L)
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { productRepository.findById(99L) } returns null
+    fun `addProductToSupply should throw IllegalArgumentException when unitPrice is not positive`() = runTest {
+        val dto = AddSupplyProductRequest(productId = 1, quantity = 10, unitPrice = 0)
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
+        val product = mockProduct(1)
 
-        assertFailsWith<NoSuchElementException> {
-            supplyService.addProductToSupply(1L, request)
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { productRepository.findByIdAndUserId(1, 1) } returns product
+        initService()
+
+        try {
+            service.addProductToSupply(1, dto, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Unit price must be positive", e.message)
         }
-        coVerify(exactly = 0) { supplyRepository.addProduct(any(), any(), any(), any()) }
     }
 
     @Test
-    fun addProductToSupply_shouldThrowWhenQuantityIsZero() = runTest {
-        val request = addSupplyProductRequest.copy(quantity = 0)
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { productRepository.findById(1L) } returns testProduct
+    fun `removeProduct should remove product when supply is in CREATED status`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.addProductToSupply(1L, request)
-        }
-        coVerify(exactly = 0) { supplyRepository.addProduct(any(), any(), any(), any()) }
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { supplyRepository.removeProduct(1, 1) } returns true
+        coEvery { supplyRepository.updateTotalPrice(1) } returns Unit
+        initService()
+
+        service.removeProduct(1, 1, 1)
+
+        coVerify { supplyRepository.findByIdAndUserId(1, 1) }
+        coVerify { supplyRepository.removeProduct(1, 1) }
+        coVerify { supplyRepository.updateTotalPrice(1) }
     }
 
     @Test
-    fun addProductToSupply_shouldThrowWhenUnitPriceIsNegative() = runTest {
-        val request = addSupplyProductRequest.copy(unitPrice = -1L)
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { productRepository.findById(1L) } returns testProduct
+    fun `removeProduct should throw IllegalArgumentException when supply not in CREATED status`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.CONFIRMED)
+        val enriched = mockSupplyEnriched(supply, 1)
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.addProductToSupply(1L, request)
-        }
-        coVerify(exactly = 0) { supplyRepository.addProduct(any(), any(), any(), any()) }
-    }
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        initService()
 
-    // removeProduct
-    @Test
-    fun removeProduct_shouldRemoveSuccessfully() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.removeProduct(1L, 1L) } returns true
-        coEvery { supplyRepository.updateTotalPrice(1L) } returns Unit
-
-        supplyService.removeProduct(1L, 1L)
-
-        coVerify(exactly = 1) { supplyRepository.removeProduct(1L, 1L) }
-        coVerify(exactly = 1) { supplyRepository.updateTotalPrice(1L) }
-    }
-
-    @Test
-    fun removeProduct_shouldThrowWhenSupplyNotFound() = runTest {
-        coEvery { supplyRepository.findById(99L) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            supplyService.removeProduct(99L, 1L)
+        try {
+            service.removeProduct(1, 1, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Can only remove products from supply with status CREATED", e.message)
         }
         coVerify(exactly = 0) { supplyRepository.removeProduct(any(), any()) }
     }
 
     @Test
-    fun removeProduct_shouldThrowWhenSupplyNotInCreatedStatus() = runTest {
-        val pendingSupply = testSupply.copy(status = SupplyStatus.PENDING)
-        coEvery { supplyRepository.findById(1L) } returns pendingSupply
+    fun `removeProduct should throw NoSuchElementException when product not found in supply`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.removeProduct(1L, 1L)
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { supplyRepository.removeProduct(1, 1) } returns false
+        initService()
+
+        try {
+            service.removeProduct(1, 1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { supplyRepository.removeProduct(any(), any()) }
     }
 
     @Test
-    fun removeProduct_shouldThrowWhenProductNotInSupply() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.removeProduct(1L, 99L) } returns false
+    fun `deleteSupplyById should delete supply when in CREATED status`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.CREATED)
+        val enriched = mockSupplyEnriched(supply, 1)
 
-        assertFailsWith<NoSuchElementException> {
-            supplyService.removeProduct(1L, 99L)
-        }
-        coVerify(exactly = 0) { supplyRepository.updateTotalPrice(any()) }
-    }
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        coEvery { supplyRepository.delete(1) } returns true
+        initService()
 
-    // deleteSupplyById
-    @Test
-    fun deleteSupplyById_shouldDeleteCreatedSupply() = runTest {
-        coEvery { supplyRepository.findById(1L) } returns testSupply
-        coEvery { supplyRepository.delete(1L) } returns true
+        service.deleteSupplyById(1, 1)
 
-        supplyService.deleteSupplyById(1L)
-
-        coVerify(exactly = 1) { supplyRepository.delete(1L) }
+        coVerify { supplyRepository.findByIdAndUserId(1, 1) }
+        coVerify { supplyRepository.delete(1) }
     }
 
     @Test
-    fun deleteSupplyById_shouldDeleteCancelledSupply() = runTest {
-        val cancelled = testSupply.copy(status = SupplyStatus.CANCELLED)
-        coEvery { supplyRepository.findById(1L) } returns cancelled
-        coEvery { supplyRepository.delete(1L) } returns true
+    fun `deleteSupplyById should throw IllegalArgumentException when in CONFIRMED status`() = runTest {
+        val supply = mockSupply(1, status = SupplyStatus.CONFIRMED)
+        val enriched = mockSupplyEnriched(supply, 1)
 
-        supplyService.deleteSupplyById(1L)
+        coEvery { supplyRepository.findByIdAndUserId(1, 1) } returns enriched
+        initService()
 
-        coVerify(exactly = 1) { supplyRepository.delete(1L) }
-    }
-
-    @Test
-    fun deleteSupplyById_shouldThrowWhenNotFound() = runTest {
-        coEvery { supplyRepository.findById(99L) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            supplyService.deleteSupplyById(99L)
+        try {
+            service.deleteSupplyById(1, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Can only delete supply with status CREATED or CANCELLED", e.message)
         }
         coVerify(exactly = 0) { supplyRepository.delete(any()) }
     }
 
     @Test
-    fun deleteSupplyById_shouldThrowWhenStatusIsShipped() = runTest {
-        val shipped = testSupply.copy(status = SupplyStatus.SHIPPED)
-        coEvery { supplyRepository.findById(1L) } returns shipped
+    fun `getSupplyByIdInternal should return supply when exists`() = runTest {
+        val expected = mockSupplyEnriched(mockSupply(1), 1)
+        coEvery { supplyRepository.findById(1) } returns expected
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.deleteSupplyById(1L)
-        }
-        coVerify(exactly = 0) { supplyRepository.delete(any()) }
+        val result = service.getSupplyByIdInternal(1)
+
+        assertEquals(1L, result.supply.supplyId)
+        coVerify { supplyRepository.findById(1) }
     }
 
     @Test
-    fun deleteSupplyById_shouldThrowWhenStatusIsCompleted() = runTest {
-        val completed = testSupply.copy(status = SupplyStatus.COMPLETED)
-        coEvery { supplyRepository.findById(1L) } returns completed
+    fun `getSupplyByIdInternal should throw NoSuchElementException when not found`() = runTest {
+        coEvery { supplyRepository.findById(1) } returns null
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplyService.deleteSupplyById(1L)
+        try {
+            service.getSupplyByIdInternal(1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { supplyRepository.delete(any()) }
+    }
+
+    @Test
+    fun `hasAccess should return true when user has access`() = runTest {
+        coEvery { supplyRepository.hasAccess(1, 1) } returns true
+        initService()
+
+        val result = service.hasAccess(1, 1)
+
+        assertEquals(true, result)
+    }
+
+    @Test
+    fun `hasAccess should return false when user has no access`() = runTest {
+        coEvery { supplyRepository.hasAccess(1, 2) } returns false
+        initService()
+
+        val result = service.hasAccess(1, 2)
+
+        assertEquals(false, result)
     }
 }

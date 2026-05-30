@@ -15,6 +15,8 @@ interface WarehouseProductRepository {
     suspend fun upsertAll(warehouseId: Int, products: List<SupplyProduct>)
     suspend fun getTotalQuantityAll(): Int
     suspend fun getTotalPriceAll(): Long
+    suspend fun getTotalQuantityByUserId(userId: Int): Int
+    suspend fun getTotalPriceByUserId(userId: Int): Long
 }
 
 data class WarehouseStats(

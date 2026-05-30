@@ -6,6 +6,7 @@ import data.table.WarehouseSupplyTable
 import data.table.ProductTable
 import data.table.SupplierTable
 import data.table.WarehouseTable
+import data.table.UserWarehouseTable
 import domain.model.Product
 import domain.model.Supply
 import domain.model.SupplyEnriched
@@ -70,6 +71,27 @@ class SupplyRepositoryImpl : SupplyRepository {
         query.map(::rowToSupplyEnriched)
     }
 
+    override suspend fun findAllByUserId(
+        userId: Int,
+        warehouseId: Int?,
+        status: SupplyStatus?
+    ): List<SupplyEnriched> = dbQuery {
+        val query = (
+                SupplyTable
+                        innerJoin WarehouseSupplyTable
+                        innerJoin SupplierTable
+                        innerJoin WarehouseTable
+                        innerJoin UserWarehouseTable
+                )
+            .selectAll()
+            .where { UserWarehouseTable.userId eq userId }
+
+        warehouseId?.let { query.andWhere { WarehouseSupplyTable.warehouseId eq it } }
+        status?.let { query.andWhere { SupplyTable.status eq it.name } }
+
+        query.map(::rowToSupplyEnriched)
+    }
+
     private fun findByIdInternal(id: Long): SupplyEnriched? =
         SupplyTable
             .innerJoin(WarehouseSupplyTable,
@@ -95,7 +117,12 @@ class SupplyRepositoryImpl : SupplyRepository {
         findByIdInternal(id)
     }
 
-    override suspend fun create(supplierId: Int, warehouseId: Int): SupplyEnriched = dbQuery {
+    override suspend fun findByIdAndUserId(id: Long, userId: Int): SupplyEnriched? = dbQuery {
+        if (!hasAccess(id, userId)) return@dbQuery null
+        findByIdInternal(id)
+    }
+
+    override suspend fun create(supplierId: Int, warehouseId: Int, userId: Int): SupplyEnriched = dbQuery {
         val now = OffsetDateTime.now()
 
         val id = SupplyTable.insert {
@@ -209,5 +236,39 @@ class SupplyRepositoryImpl : SupplyRepository {
             .map { it[SupplyTable.status] }
             .groupingBy { it }
             .eachCount()
+    }
+
+    override suspend fun countByStatusByUserId(userId: Int): Map<String, Int> = dbQuery {
+        val userSupplyIds = WarehouseSupplyTable
+            .innerJoin(UserWarehouseTable,
+                onColumn = { WarehouseSupplyTable.warehouseId },
+                otherColumn = { UserWarehouseTable.warehouseId }
+            )
+            .selectAll()
+            .where { UserWarehouseTable.userId eq userId }
+            .map { it[WarehouseSupplyTable.supplyId] }
+
+        if (userSupplyIds.isEmpty()) return@dbQuery emptyMap()
+
+        SupplyTable
+            .selectAll()
+            .where { SupplyTable.supplyId inList userSupplyIds }
+            .map { it[SupplyTable.status] }
+            .groupingBy { it }
+            .eachCount()
+    }
+
+    override suspend fun hasAccess(supplyId: Long, userId: Int): Boolean = dbQuery {
+        WarehouseSupplyTable
+            .innerJoin(UserWarehouseTable,
+                onColumn = { WarehouseSupplyTable.warehouseId },
+                otherColumn = { UserWarehouseTable.warehouseId }
+            )
+            .selectAll()
+            .where {
+                (WarehouseSupplyTable.supplyId eq supplyId) and
+                (UserWarehouseTable.userId eq userId)
+            }
+            .count() > 0
     }
 }

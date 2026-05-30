@@ -1,222 +1,315 @@
 package service
 
+import api.dto.CreateProductRequest
+import api.dto.UpdateProductRequest
+import domain.model.Product
+import domain.model.ProductEx
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.fail
 
 class ProductServiceTest : BaseServiceTest() {
 
-    // getAllProducts
-    @Test
-    fun getAllProducts_shouldReturnAllProducts() = runTest {
-        coEvery { productRepository.findAll(null) } returns testProducts
+    private lateinit var service: ProductService
 
-        val result = productService.getAllProducts(null)
-
-        assertEquals(testProducts, result)
-        coVerify(exactly = 1) { productRepository.findAll(null) }
+    private fun initService() {
+        service = ProductService(productRepository)
     }
 
     @Test
-    fun getAllProducts_shouldReturnFilteredByCategory() = runTest {
-        coEvery { productRepository.findAll(1) } returns listOf(testProduct)
+    fun `getAllProducts should return list of products`() = runTest {
+        val expected = listOf(
+            mockProductEx(1, 1, "Electronics", "Laptop"),
+            mockProductEx(2, 1, "Electronics", "Mouse")
+        )
+        coEvery { productRepository.findAllByUserId(1, null, null) } returns expected
+        initService()
 
-        val result = productService.getAllProducts(1)
+        val result = service.getAllProducts(null, null, 1)
+
+        assertEquals(2, result.size)
+        assertEquals("Laptop", result[0].title)
+        coVerify { productRepository.findAllByUserId(1, null, null) }
+    }
+
+    @Test
+    fun `getAllProducts should filter by categoryId`() = runTest {
+        val expected = listOf(mockProductEx(1, 5, "Furniture", "Chair"))
+        coEvery { productRepository.findAllByUserId(1, 5, null) } returns expected
+        initService()
+
+        val result = service.getAllProducts(5, null, 1)
 
         assertEquals(1, result.size)
-        assertEquals(testProduct, result[0])
+        assertEquals("Chair", result[0].title)
+        coVerify { productRepository.findAllByUserId(1, 5, null) }
     }
 
     @Test
-    fun getAllProducts_shouldReturnEmptyList() = runTest {
-        coEvery { productRepository.findAll(null) } returns emptyList()
+    fun `getProductById should return product when exists and belongs to user`() = runTest {
+        val expected = mockProduct(1, 1, "Laptop")
+        coEvery { productRepository.findByIdAndUserId(1, 1) } returns expected
+        initService()
 
-        val result = productService.getAllProducts(null)
+        val result = service.getProductById(1, 1)
 
-        assertTrue(result.isEmpty())
-    }
-
-    // getProductById
-    @Test
-    fun getProductById_shouldReturnProduct() = runTest {
-        coEvery { productRepository.findById(1L) } returns testProduct
-
-        val result = productService.getProductById(1L)
-
-        assertEquals(testProduct, result)
+        assertEquals("Laptop", result.title)
+        coVerify { productRepository.findByIdAndUserId(1, 1) }
     }
 
     @Test
-    fun getProductById_shouldThrowWhenNotFound() = runTest {
-        coEvery { productRepository.findById(99L) } returns null
+    fun `getProductById should throw NoSuchElementException when not found`() = runTest {
+        coEvery { productRepository.findByIdAndUserId(1, 1) } returns null
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            productService.getProductById(99L)
+        try {
+            service.getProductById(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 
-    // createProduct
-
     @Test
-    fun createProduct_shouldReturnCreatedProduct() = runTest {
-        coEvery { categoryRepository.findById(1) } returns testCategory
+    fun `createProduct should create product with valid data`() = runTest {
+        val dto = CreateProductRequest(
+            categoryId = 1,
+            title = "Laptop",
+            description = "Gaming laptop",
+            width = 30,
+            length = 20,
+            height = 5
+        )
+        val expected = mockProduct(1, 1, "Laptop")
         coEvery {
-            productRepository.create(1, "Laptop", "Gaming laptop")
-        } returns testProduct
+            productRepository.create(
+                categoryId = 1,
+                title = "Laptop",
+                description = "Gaming laptop",
+                width = 30,
+                length = 20,
+                height = 5,
+                userId = 1
+            )
+        } returns expected
+        initService()
 
-        val result = productService.createProduct(createProductRequest)
+        val result = service.createProduct(dto, 1)
 
-        assertEquals(testProduct, result)
-        coVerify(exactly = 1) { productRepository.create(1, "Laptop", "Gaming laptop") }
-    }
-
-    @Test
-    fun createProduct_shouldThrowWhenTitleIsBlank() = runTest {
-        val request = createProductRequest.copy(title = "   ")
-
-        assertFailsWith<IllegalArgumentException> {
-            productService.createProduct(request)
-        }
-        coVerify(exactly = 0) { productRepository.create(any(), any(), any()) }
-    }
-
-    @Test
-    fun createProduct_shouldThrowWhenCategoryNotFound() = runTest {
-        val request = createProductRequest.copy(categoryId = 99)
-        coEvery { categoryRepository.findById(99) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            productService.createProduct(request)
-        }
-        coVerify(exactly = 0) { productRepository.create(any(), any(), any()) }
-    }
-
-    @Test
-    fun createProduct_shouldTrimTitleBeforeSaving() = runTest {
-        val request = createProductRequest.copy(title = "  Laptop  ")
-        coEvery { categoryRepository.findById(1) } returns testCategory
-        coEvery { productRepository.create(1, "Laptop", any()) } returns testProduct
-
-        productService.createProduct(request)
-
-        coVerify { productRepository.create(1, "Laptop", any()) }
-    }
-
-    @Test
-    fun createProduct_shouldCreateWithNullDescription() = runTest {
-        val request = createProductRequest.copy(description = null)
-        val productNoDesc = testProduct.copy(description = null)
-        coEvery { categoryRepository.findById(1) } returns testCategory
-        coEvery { productRepository.create(1, "Laptop", null) } returns productNoDesc
-
-        val result = productService.createProduct(request)
-
-        assertNull(result.description)
-    }
-
-    // updateProductById
-
-    @Test
-    fun updateProductById_shouldReturnUpdatedProduct() = runTest {
-        val updated = testProduct.copy(title = "New Laptop")
-        coEvery { productRepository.findById(1L) } returns testProduct
-        coEvery { productRepository.update(1L, null, "New Laptop", null) } returns updated
-
-        val result = productService.updateProductById(1L, updateProductRequest)
-
-        assertEquals("New Laptop", result.title)
-    }
-
-    @Test
-    fun updateProductById_shouldThrowWhenProductNotFound() = runTest {
-        coEvery { productRepository.findById(99L) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            productService.updateProductById(99L, updateProductRequest)
+        assertEquals("Laptop", result.title)
+        coVerify {
+            productRepository.create(
+                categoryId = 1,
+                title = "Laptop",
+                description = "Gaming laptop",
+                width = 30,
+                length = 20,
+                height = 5,
+                userId = 1
+            )
         }
     }
 
     @Test
-    fun updateProductById_shouldThrowWhenNewCategoryNotFound() = runTest {
-        val request = updateProductRequest.copy(categoryId = 99)
-        coEvery { productRepository.findById(1L) } returns testProduct
-        coEvery { categoryRepository.findById(99) } returns null
+    fun `createProduct should trim title and description`() = runTest {
+        val dto = CreateProductRequest(
+            categoryId = 1,
+            title = "  Laptop  ",
+            description = "  Gaming laptop  ",
+            width = 30,
+            length = 20,
+            height = 5
+        )
+        val expected = mockProduct(1, 1, "Laptop")
+        coEvery {
+            productRepository.create(
+                categoryId = 1,
+                title = "Laptop",
+                description = "Gaming laptop",
+                width = 30,
+                length = 20,
+                height = 5,
+                userId = 1
+            )
+        } returns expected
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            productService.updateProductById(1L, request)
+        val result = service.createProduct(dto, 1)
+
+        assertEquals("Laptop", result.title)
+        coVerify {
+            productRepository.create(
+                categoryId = 1,
+                title = "Laptop",
+                description = "Gaming laptop",
+                width = 30,
+                length = 20,
+                height = 5,
+                userId = 1
+            )
         }
     }
 
     @Test
-    fun updateProductById_shouldThrowWhenTitleIsBlank() = runTest {
-        val request = updateProductRequest.copy(title = "   ")
-        coEvery { productRepository.findById(1L) } returns testProduct
+    fun `createProduct should throw IllegalArgumentException when title is blank`() = runTest {
+        val dto = CreateProductRequest(
+            categoryId = 1,
+            title = "   ",
+            description = null,
+            width = 30,
+            length = 20,
+            height = 5
+        )
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            productService.updateProductById(1L, request)
+        try {
+            service.createProduct(dto, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Title must not be blank", e.message)
+        }
+        coVerify(exactly = 0) { productRepository.create(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `updateProductById should update product when exists`() = runTest {
+        val dto = UpdateProductRequest(
+            categoryId = 2,
+            title = "Updated Laptop",
+            description = "Updated description",
+            width = 35,
+            length = 25,
+            height = 6
+        )
+        val expected = mockProduct(1, 2, "Updated Laptop", "Updated description")
+        coEvery {
+            productRepository.update(
+                id = 1,
+                categoryId = 2,
+                title = "Updated Laptop",
+                description = "Updated description",
+                width = 35,
+                length = 25,
+                height = 6,
+                userId = 1
+            )
+        } returns expected
+        initService()
+
+        val result = service.updateProductById(1, dto, 1)
+
+        assertEquals("Updated Laptop", result.title)
+        coVerify {
+            productRepository.update(
+                id = 1,
+                categoryId = 2,
+                title = "Updated Laptop",
+                description = "Updated description",
+                width = 35,
+                length = 25,
+                height = 6,
+                userId = 1
+            )
         }
     }
 
     @Test
-    fun updateProductById_shouldUpdateOnlyProvidedFields() = runTest {
-        val request = updateProductRequest.copy(title = null, description = "New desc")
-        val updated = testProduct.copy(description = "New desc")
-        coEvery { productRepository.findById(1L) } returns testProduct
-        coEvery { productRepository.update(1L, null, null, "New desc") } returns updated
+    fun `updateProductById should throw IllegalArgumentException when title is blank`() = runTest {
+        val dto = UpdateProductRequest(categoryId = null, title = "   ", description = null, width = null, length = null, height = null)
+        initService()
 
-        val result = productService.updateProductById(1L, request)
-
-        assertEquals("New desc", result.description)
-        assertEquals(testProduct.title, result.title)
-    }
-
-    // deleteProductById
-
-    @Test
-    fun deleteProductById_shouldDeleteSuccessfully() = runTest {
-        coEvery { productRepository.existsInSupplies(1L) } returns false
-        coEvery { productRepository.existsInWarehouses(1L) } returns false
-        coEvery { productRepository.delete(1L) } returns true
-
-        productService.deleteProductById(1L)
-
-        coVerify(exactly = 1) { productRepository.delete(1L) }
-    }
-
-    @Test
-    fun deleteProductById_shouldThrowWhenUsedInSupplies() = runTest {
-        coEvery { productRepository.existsInSupplies(1L) } returns true
-
-        assertFailsWith<IllegalArgumentException> {
-            productService.deleteProductById(1L)
+        try {
+            service.updateProductById(1, dto, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Title must not be blank", e.message)
         }
-        coVerify(exactly = 0) { productRepository.delete(any()) }
+        coVerify(exactly = 0) { productRepository.update(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun deleteProductById_shouldThrowWhenExistsInWarehouses() = runTest {
-        coEvery { productRepository.existsInSupplies(1L) } returns false
-        coEvery { productRepository.existsInWarehouses(1L) } returns true
+    fun `updateProductById should throw NoSuchElementException when not found`() = runTest {
+        val dto = UpdateProductRequest(categoryId = null, title = "New Title", description = null, width = null, length = null, height = null)
+        coEvery {
+            productRepository.update(
+                id = 1,
+                categoryId = null,
+                title = "New Title",
+                description = null,
+                width = null,
+                length = null,
+                height = null,
+                userId = 1
+            )
+        } returns null
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            productService.deleteProductById(1L)
+        try {
+            service.updateProductById(1, dto, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { productRepository.delete(any()) }
     }
 
     @Test
-    fun deleteProductById_shouldThrowWhenNotFound() = runTest {
-        coEvery { productRepository.existsInSupplies(1L) } returns false
-        coEvery { productRepository.existsInWarehouses(1L) } returns false
-        coEvery { productRepository.delete(1L) } returns false
+    fun `deleteProductById should delete product when exists and not used`() = runTest {
+        coEvery { productRepository.hasAccess(1, 1) } returns true
+        coEvery { productRepository.existsInSupplies(1) } returns false
+        coEvery { productRepository.existsInWarehouses(1) } returns false
+        coEvery { productRepository.delete(1, 1) } returns true
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            productService.deleteProductById(1L)
+        service.deleteProductById(1, 1)
+
+        coVerify { productRepository.hasAccess(1, 1) }
+        coVerify { productRepository.existsInSupplies(1) }
+        coVerify { productRepository.existsInWarehouses(1) }
+        coVerify { productRepository.delete(1, 1) }
+    }
+
+    @Test
+    fun `deleteProductById should throw NoSuchElementException when no access`() = runTest {
+        coEvery { productRepository.hasAccess(1, 1) } returns false
+        initService()
+
+        try {
+            service.deleteProductById(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
+        coVerify(exactly = 0) { productRepository.delete(any(), any()) }
+    }
+
+    @Test
+    fun `deleteProductById should throw IllegalArgumentException when used in supplies`() = runTest {
+        coEvery { productRepository.hasAccess(1, 1) } returns true
+        coEvery { productRepository.existsInSupplies(1) } returns true
+        initService()
+
+        try {
+            service.deleteProductById(1, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Cannot delete product that is used in supplies", e.message)
+        }
+        coVerify(exactly = 0) { productRepository.delete(any(), any()) }
+    }
+
+    @Test
+    fun `deleteProductById should throw IllegalArgumentException when on warehouse`() = runTest {
+        coEvery { productRepository.hasAccess(1, 1) } returns true
+        coEvery { productRepository.existsInSupplies(1) } returns false
+        coEvery { productRepository.existsInWarehouses(1) } returns true
+        initService()
+
+        try {
+            service.deleteProductById(1, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Cannot delete product that is on warehouse", e.message)
+        }
+        coVerify(exactly = 0) { productRepository.delete(any(), any()) }
     }
 }

@@ -23,15 +23,15 @@ class SupplyService(
 
     private val log = LoggerFactory.getLogger("SupplyService")
 
-    suspend fun getAllSupplies(warehouseId: Int?, status: SupplyStatus?): List<SupplyEnriched> =
-        repository.findAll(warehouseId, status)
+    suspend fun getAllSupplies(userId: Int, warehouseId: Int?, status: SupplyStatus?): List<SupplyEnriched> =
+        repository.findAllByUserId(userId, warehouseId, status)
 
-    suspend fun getSupplyById(id: Long): SupplyEnriched =
-        repository.findById(id)
+    suspend fun getSupplyById(id: Long, userId: Int): SupplyEnriched =
+        repository.findByIdAndUserId(id, userId)
             ?: throw NoSuchElementException("Supply $id not found")
 
-    suspend fun getSupplyDetails(supplyId: Long): SupplyDetailResponse {
-        val enriched = getSupplyById(supplyId)
+    suspend fun getSupplyDetails(supplyId: Long, userId: Int): SupplyDetailResponse {
+        val enriched = getSupplyById(supplyId, userId)
         val products = repository.findProductsDetails(supplyId)
 
         return enriched.supply.toDetailResponse(
@@ -42,15 +42,15 @@ class SupplyService(
         )
     }
 
-    suspend fun createSupply(dto: CreateSupplyRequest): SupplyEnriched {
-        supplierService.getSupplierById(dto.supplierId)
-        warehouseService.getWarehouseById(dto.warehouseId)
+    suspend fun createSupply(dto: CreateSupplyRequest, userId: Int): SupplyEnriched {
+        supplierService.getSupplierById(dto.supplierId, userId)
+        warehouseService.getWarehouseById(dto.warehouseId, userId)
 
-        return repository.create(dto.supplierId, dto.warehouseId)
+        return repository.create(dto.supplierId, dto.warehouseId, userId)
     }
 
-    suspend fun updateSupplyStatus(id: Long, newStatus: SupplyStatus): SupplyEnriched {
-        val enriched = getSupplyById(id)
+    suspend fun updateSupplyStatus(id: Long, newStatus: SupplyStatus, userId: Int): SupplyEnriched {
+        val enriched = getSupplyById(id, userId)
 
         if (newStatus !in enriched.supply.status.allowedTransitions())
             throw IllegalArgumentException("Cannot transition from ${enriched.supply.status} to $newStatus")
@@ -63,13 +63,13 @@ class SupplyService(
             ?: throw NoSuchElementException("Supply $id not found")
     }
 
-    suspend fun addProductToSupply(supplyId: Long, dto: AddSupplyProductRequest): SupplyProduct {
-        val enriched = getSupplyById(supplyId)
+    suspend fun addProductToSupply(supplyId: Long, dto: AddSupplyProductRequest, userId: Int): SupplyProduct {
+        val enriched = getSupplyById(supplyId, userId)
 
         if (enriched.supply.status != SupplyStatus.CREATED)
             throw IllegalArgumentException("Can only add products to supply with status CREATED")
 
-        productService.getProductById(dto.productId)
+        productService.getProductById(dto.productId, userId)
 
         if (dto.quantity <= 0)
             throw IllegalArgumentException("Quantity must be positive")
@@ -82,8 +82,8 @@ class SupplyService(
         return product
     }
 
-    suspend fun removeProduct(supplyId: Long, productId: Long) {
-        val enriched = getSupplyById(supplyId)
+    suspend fun removeProduct(supplyId: Long, productId: Long, userId: Int) {
+        val enriched = getSupplyById(supplyId, userId)
 
         if (enriched.supply.status != SupplyStatus.CREATED)
             throw IllegalArgumentException("Can only remove products from supply with status CREATED")
@@ -94,8 +94,8 @@ class SupplyService(
         repository.updateTotalPrice(supplyId)
     }
 
-    suspend fun deleteSupplyById(id: Long) {
-        val enriched = getSupplyById(id)
+    suspend fun deleteSupplyById(id: Long, userId: Int) {
+        val enriched = getSupplyById(id, userId)
 
         if (enriched.supply.status !in listOf(SupplyStatus.CREATED, SupplyStatus.CANCELLED))
             throw IllegalArgumentException("Can only delete supply with status CREATED or CANCELLED")
@@ -103,8 +103,18 @@ class SupplyService(
         repository.delete(id)
     }
 
+
+    // Внутренние методы без проверки userId
+    suspend fun getSupplyByIdInternal(id: Long): SupplyEnriched =
+        repository.findById(id)
+            ?: throw NoSuchElementException("Supply $id not found")
+
+    suspend fun hasAccess(supplyId: Long, userId: Int): Boolean =
+        repository.hasAccess(supplyId, userId)
+
+
     private suspend fun completeSupply(supplyId: Long) {
-        val warehouseId = warehouseService.getWarehouseIdBySupplyId(supplyId)
+        val warehouseId = warehouseService.getWarehouseIdBySupplyIdInternal(supplyId)
 
         log.info("Complete supply: wsId: $warehouseId, sId: $supplyId")
 

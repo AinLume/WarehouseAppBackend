@@ -3,12 +3,15 @@ package data.repository
 import data.table.CategoryTable
 import data.table.ProductTable
 import data.table.SupplyProductTable
+import data.table.UserProductTable
 import data.table.WarehouseProductTable
 import domain.model.Product
 import domain.model.ProductEx
 import domain.repository.ProductRepository
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -38,11 +41,23 @@ class ProductRepositoryImpl : ProductRepository {
         height = row[ProductTable.height]
     )
 
-    override suspend fun findAll(categoryId: Int?): List<ProductEx> = dbQuery {
-        (ProductTable innerJoin CategoryTable)
-            .selectAll()
-            .apply { categoryId?.let { where { ProductTable.categoryId eq it } } }
-            .map(::rowToProductEx)
+    override suspend fun findAll(categoryId: Int?, search: String?): List<ProductEx> {
+        val products = dbQuery {
+            (ProductTable innerJoin CategoryTable)
+                .selectAll()
+                .apply { categoryId?.let { where { ProductTable.categoryId eq it } } }
+                .map(::rowToProductEx)
+        }
+
+        return if (search != null) {
+            val lowerSearch = search.lowercase()
+            products.filter { product ->
+                product.title.lowercase().contains(lowerSearch) ||
+                (product.description?.lowercase()?.contains(lowerSearch) == true)
+            }
+        } else {
+            products
+        }
     }
 
     override suspend fun findById(id: Long): Product? = dbQuery {
@@ -53,13 +68,47 @@ class ProductRepositoryImpl : ProductRepository {
             .singleOrNull()
     }
 
+    override suspend fun findAllByUserId(userId: Int, categoryId: Int?, search: String?): List<ProductEx> {
+        val products = dbQuery {
+            val query = (ProductTable innerJoin CategoryTable innerJoin UserProductTable)
+                .selectAll()
+                .where { UserProductTable.userId eq userId }
+            if (categoryId != null) {
+                query.andWhere { ProductTable.categoryId eq categoryId }
+            }
+            query.map(::rowToProductEx)
+        }
+
+        return if (search != null) {
+            val lowerSearch = search.lowercase()
+            products.filter { product ->
+                product.title.lowercase().contains(lowerSearch) ||
+                (product.description?.lowercase()?.contains(lowerSearch) == true)
+            }
+        } else {
+            products
+        }
+    }
+
+    override suspend fun findByIdAndUserId(id: Long, userId: Int): Product? = dbQuery {
+        (ProductTable innerJoin UserProductTable)
+            .selectAll()
+            .where {
+                (ProductTable.productId eq id) and
+                (UserProductTable.userId eq userId)
+            }
+            .map(::rowToProduct)
+            .singleOrNull()
+    }
+
     override suspend fun create(
         categoryId: Int,
         title: String,
         description: String?,
         width: Int,
         length: Int,
-        height: Int
+        height: Int,
+        userId: Int
     ): Product = dbQuery {
 
         val id = ProductTable.insert {
@@ -71,6 +120,11 @@ class ProductRepositoryImpl : ProductRepository {
             it[ProductTable.height] = height
         } get ProductTable.productId
 
+        UserProductTable.insert {
+            it[UserProductTable.userId] = userId
+            it[UserProductTable.productId] = id
+        }
+
         Product(id, categoryId, title, description, width, length, height)
     }
 
@@ -81,8 +135,10 @@ class ProductRepositoryImpl : ProductRepository {
         description: String?,
         width: Int?,
         length: Int?,
-        height: Int?
+        height: Int?,
+        userId: Int
     ): Product? = dbQuery {
+        if (!hasAccess(id, userId)) return@dbQuery null
 
         val updated = ProductTable.update(
             where = { ProductTable.productId eq id }
@@ -97,7 +153,15 @@ class ProductRepositoryImpl : ProductRepository {
         if (updated == 0) null else findById(id)
     }
 
-    override suspend fun delete(id: Long): Boolean = dbQuery {
+    override suspend fun delete(id: Long, userId: Int): Boolean = dbQuery {
+        val hasAccess = hasAccess(id, userId)
+        if (!hasAccess) return@dbQuery false
+
+        UserProductTable.deleteWhere {
+            (UserProductTable.productId eq id) and
+            (UserProductTable.userId eq userId)
+        }
+
         ProductTable.deleteWhere { productId eq id } > 0
     }
 
@@ -112,6 +176,16 @@ class ProductRepositoryImpl : ProductRepository {
         WarehouseProductTable
             .selectAll()
             .where { WarehouseProductTable.productId eq id }
+            .count() > 0
+    }
+
+    override suspend fun hasAccess(productId: Long, userId: Int): Boolean = dbQuery {
+        UserProductTable
+            .selectAll()
+            .where {
+                (UserProductTable.productId eq productId) and
+                (UserProductTable.userId eq userId)
+            }
             .count() > 0
     }
 }
