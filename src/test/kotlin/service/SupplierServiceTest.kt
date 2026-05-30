@@ -1,242 +1,282 @@
 package service
 
+import api.dto.CreateSupplierRequest
+import api.dto.UpdateSupplierRequest
+import domain.model.Supplier
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.fail
 
 class SupplierServiceTest : BaseServiceTest() {
 
-    // getAllSuppliers
-    @Test
-    fun getAllSuppliers_shouldReturnAllSuppliers() = runTest {
-        coEvery { supplierRepository.findAll() } returns testSuppliers
+    private lateinit var service: SupplierService
 
-        val result = supplierService.getAllSuppliers()
-
-        assertEquals(testSuppliers, result)
-        coVerify(exactly = 1) { supplierRepository.findAll() }
+    private fun initService() {
+        service = SupplierService(supplierRepository)
     }
 
     @Test
-    fun getAllSuppliers_shouldReturnEmptyList() = runTest {
-        coEvery { supplierRepository.findAll() } returns emptyList()
+    fun `getAllSuppliers should return list of suppliers`() = runTest {
+        val expected = listOf(
+            mockSupplier(1, "TechSupplier", "+79001234567", "tech@supplier.com"),
+            mockSupplier(2, "FoodSupplier", "+79001234568", "food@supplier.com")
+        )
+        coEvery { supplierRepository.findAll() } returns expected
+        initService()
 
-        val result = supplierService.getAllSuppliers()
+        val result = service.getAllSuppliers()
 
-        assertTrue(result.isEmpty())
-    }
-
-    // getSupplierById 
-
-    @Test
-    fun getSupplierById_shouldReturnSupplier() = runTest {
-        coEvery { supplierRepository.findById(1) } returns testSupplier
-
-        val result = supplierService.getSupplierById(1)
-
-        assertEquals(testSupplier, result)
+        assertEquals(2, result.size)
+        assertEquals("TechSupplier", result[0].name)
+        coVerify { supplierRepository.findAll() }
     }
 
     @Test
-    fun getSupplierById_shouldThrowWhenNotFound() = runTest {
-        coEvery { supplierRepository.findById(99) } returns null
+    fun `getSupplierById should return supplier when exists`() = runTest {
+        val expected = mockSupplier(1, "TechSupplier")
+        coEvery { supplierRepository.findById(1) } returns expected
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            supplierService.getSupplierById(99)
+        val result = service.getSupplierById(1)
+
+        assertEquals("TechSupplier", result.name)
+        coVerify { supplierRepository.findById(1) }
+    }
+
+    @Test
+    fun `getSupplierById should throw NoSuchElementException when not found`() = runTest {
+        coEvery { supplierRepository.findById(1) } returns null
+        initService()
+
+        try {
+            service.getSupplierById(1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 
-    // createSupplier
     @Test
-    fun createSupplier_shouldReturnCreatedSupplier() = runTest {
+    fun `createSupplier should create supplier with valid data`() = runTest {
+        val dto = CreateSupplierRequest(
+            name = "TechSupplier",
+            phone = "+79001234567",
+            email = "tech@supplier.com",
+            address = "Moscow"
+        )
+        val expected = mockSupplier(1, "TechSupplier", "+79001234567", "tech@supplier.com")
         coEvery {
-            supplierRepository.create("ООО Поставщик", "+79991234567", "supplier@example.com", any())
-        } returns testSupplier
+            supplierRepository.create("TechSupplier", "+79001234567", "tech@supplier.com", "Moscow")
+        } returns expected
+        initService()
 
-        val result = supplierService.createSupplier(createSupplierRequest)
+        val result = service.createSupplier(dto)
 
-        assertEquals(testSupplier, result)
-        coVerify(exactly = 1) {
-            supplierRepository.create("ООО Поставщик", "+79991234567", "supplier@example.com", any())
+        assertEquals("TechSupplier", result.name)
+        coVerify {
+            supplierRepository.create("TechSupplier", "+79001234567", "tech@supplier.com", "Moscow")
         }
     }
 
     @Test
-    fun createSupplier_shouldThrowWhenNameIsBlank() = runTest {
-        val request = createSupplierRequest.copy(name = "   ")
+    fun `createSupplier should trim name and address`() = runTest {
+        val dto = CreateSupplierRequest(
+            name = "  TechSupplier  ",
+            phone = "+79001234567",
+            email = null,
+            address = "  Moscow  "
+        )
+        val expected = mockSupplier(1, "TechSupplier", "+79001234567", null)
+        coEvery {
+            supplierRepository.create("TechSupplier", "+79001234567", null, "Moscow")
+        } returns expected
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.createSupplier(request)
+        val result = service.createSupplier(dto)
+
+        assertEquals("TechSupplier", result.name)
+        coVerify {
+            supplierRepository.create("TechSupplier", "+79001234567", null, "Moscow")
+        }
+    }
+
+    @Test
+    fun `createSupplier should throw IllegalArgumentException when name is blank`() = runTest {
+        val dto = CreateSupplierRequest(name = "   ", phone = "+79001234567")
+        initService()
+
+        try {
+            service.createSupplier(dto)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Name must not be blank", e.message)
         }
         coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any()) }
     }
 
     @Test
-    fun createSupplier_shouldThrowWhenPhoneIsInvalid() = runTest {
-        val request = createSupplierRequest.copy(phone = "12345")
+    fun `createSupplier should throw IllegalArgumentException when phone format is invalid`() = runTest {
+        val dto = CreateSupplierRequest(name = "TechSupplier", phone = "invalid")
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.createSupplier(request)
+        try {
+            service.createSupplier(dto)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Invalid phone format", e.message)
         }
         coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any()) }
     }
 
     @Test
-    fun createSupplier_shouldThrowWhenEmailIsInvalid() = runTest {
-        val request = createSupplierRequest.copy(email = "not-an-email")
+    fun `createSupplier should accept phone starting with 8`() = runTest {
+        val dto = CreateSupplierRequest(name = "TechSupplier", phone = "80001234567")
+        val expected = mockSupplier(1, "TechSupplier", "80001234567", null)
+        coEvery {
+            supplierRepository.create("TechSupplier", "80001234567", null, null)
+        } returns expected
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.createSupplier(request)
-        }
-        coVerify(exactly = 0) { supplierRepository.create(any(), any(), any(), any()) }
+        val result = service.createSupplier(dto)
+
+        assertEquals("80001234567", result.phone)
     }
 
     @Test
-    fun createSupplier_shouldAcceptPhoneStartingWith8() = runTest {
-        val request = createSupplierRequest.copy(phone = "89991234567")
-        coEvery {
-            supplierRepository.create("ООО Поставщик", "89991234567", any(), any())
-        } returns testSupplier.copy(phone = "89991234567")
+    fun `createSupplier should throw IllegalArgumentException when email format is invalid`() = runTest {
+        val dto = CreateSupplierRequest(name = "TechSupplier", phone = "+79001234567", email = "invalid-email")
+        initService()
 
-        val result = supplierService.createSupplier(request)
-
-        assertEquals("89991234567", result.phone)
-    }
-
-    @Test
-    fun createSupplier_shouldCreateWithNullEmailAndAddress() = runTest {
-        val request = createSupplierRequest.copy(email = null, address = null)
-        val supplierNoContacts = testSupplier.copy(email = null, address = null)
-        coEvery {
-            supplierRepository.create("ООО Поставщик", "+79991234567", null, null)
-        } returns supplierNoContacts
-
-        val result = supplierService.createSupplier(request)
-
-        assertNull(result.email)
-        assertNull(result.address)
-    }
-
-    @Test
-    fun createSupplier_shouldTrimNameBeforeSaving() = runTest {
-        val request = createSupplierRequest.copy(name = "  ООО Поставщик  ")
-        coEvery {
-            supplierRepository.create("ООО Поставщик", any(), any(), any())
-        } returns testSupplier
-
-        supplierService.createSupplier(request)
-
-        coVerify { supplierRepository.create("ООО Поставщик", any(), any(), any()) }
-    }
-
-    // updateSupplierById
-    @Test
-    fun updateSupplierById_shouldReturnUpdatedSupplier() = runTest {
-        val updated = testSupplier.copy(name = "Новый поставщик")
-        coEvery { supplierRepository.findById(1) } returns testSupplier
-        coEvery {
-            supplierRepository.update(1, "Новый поставщик", any(), any(), any())
-        } returns updated
-
-        val result = supplierService.updateSupplierById(1, updateSupplierRequest)
-
-        assertEquals("Новый поставщик", result.name)
-        coVerify(exactly = 1) {
-            supplierRepository.update(1, "Новый поставщик", any(), any(), any())
+        try {
+            service.createSupplier(dto)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Invalid email format", e.message)
         }
     }
 
     @Test
-    fun updateSupplierById_shouldThrowWhenNotFound() = runTest {
-        coEvery { supplierRepository.findById(99) } returns null
+    fun `updateSupplierById should update supplier when exists`() = runTest {
+        val dto = UpdateSupplierRequest(
+            name = "Updated Supplier",
+            phone = "+79001234568",
+            email = "updated@supplier.com",
+            address = "New Address"
+        )
+        val existing = mockSupplier(1, "TechSupplier")
+        val expected = mockSupplier(1, "Updated Supplier", "+79001234568", "updated@supplier.com")
+        coEvery { supplierRepository.findById(1) } returns existing
+        coEvery {
+            supplierRepository.update(1, "Updated Supplier", "+79001234568", "updated@supplier.com", "New Address")
+        } returns expected
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            supplierService.updateSupplierById(99, updateSupplierRequest)
+        val result = service.updateSupplierById(1, dto)
+
+        assertEquals("Updated Supplier", result.name)
+        coVerify { supplierRepository.findById(1) }
+        coVerify {
+            supplierRepository.update(1, "Updated Supplier", "+79001234568", "updated@supplier.com", "New Address")
         }
+    }
+
+    @Test
+    fun `updateSupplierById should throw IllegalArgumentException when name is blank`() = runTest {
+        val existing = mockSupplier(1, "TechSupplier")
+        coEvery { supplierRepository.findById(1) } returns existing
+        initService()
+
+        try {
+            service.updateSupplierById(1, UpdateSupplierRequest(name = "   "))
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Name must not be blank", e.message)
+        }
+        coVerify { supplierRepository.findById(1) }
         coVerify(exactly = 0) { supplierRepository.update(any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun updateSupplierById_shouldThrowWhenNameIsBlank() = runTest {
-        val request = updateSupplierRequest.copy(name = "   ")
-        coEvery { supplierRepository.findById(1) } returns testSupplier
+    fun `updateSupplierById should throw IllegalArgumentException when phone format is invalid`() = runTest {
+        val existing = mockSupplier(1, "TechSupplier")
+        coEvery { supplierRepository.findById(1) } returns existing
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.updateSupplierById(1, request)
+        try {
+            service.updateSupplierById(1, UpdateSupplierRequest(phone = "invalid"))
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Invalid phone format", e.message)
         }
-        coVerify(exactly = 0) { supplierRepository.update(any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun updateSupplierById_shouldThrowWhenPhoneIsInvalid() = runTest {
-        val request = updateSupplierRequest.copy(phone = "12345")
-        coEvery { supplierRepository.findById(1) } returns testSupplier
+    fun `updateSupplierById should throw IllegalArgumentException when email format is invalid`() = runTest {
+        val existing = mockSupplier(1, "TechSupplier")
+        coEvery { supplierRepository.findById(1) } returns existing
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.updateSupplierById(1, request)
+        try {
+            service.updateSupplierById(1, UpdateSupplierRequest(email = "invalid-email"))
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Invalid email format", e.message)
         }
-        coVerify(exactly = 0) { supplierRepository.update(any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun updateSupplierById_shouldThrowWhenEmailIsInvalid() = runTest {
-        val request = updateSupplierRequest.copy(email = "bad-email")
-        coEvery { supplierRepository.findById(1) } returns testSupplier
+    fun `updateSupplierById should throw NoSuchElementException when not found`() = runTest {
+        val dto = UpdateSupplierRequest(name = "New Name")
+        coEvery { supplierRepository.findById(1) } returns null
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.updateSupplierById(1, request)
+        try {
+            service.updateSupplierById(1, dto)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { supplierRepository.update(any(), any(), any(), any(), any()) }
+        coVerify { supplierRepository.findById(1) }
     }
 
     @Test
-    fun updateSupplierById_shouldUpdateOnlyProvidedFields() = runTest {
-        val request = updateSupplierRequest.copy(name = null, phone = null)
-        val updated = testSupplier.copy(email = "new@example.com")
-        coEvery { supplierRepository.findById(1) } returns testSupplier
-        coEvery {
-            supplierRepository.update(1, null, null, "new@example.com", any())
-        } returns updated
-
-        val result = supplierService.updateSupplierById(1, request.copy(email = "new@example.com"))
-
-        assertEquals("new@example.com", result.email)
-        assertEquals(testSupplier.name, result.name)
-    }
-
-    // deleteSupplierById
-    @Test
-    fun deleteSupplierById_shouldDeleteSuccessfully() = runTest {
+    fun `deleteSupplierById should delete supplier when exists and has no supplies`() = runTest {
         coEvery { supplierRepository.hasSupplies(1) } returns false
         coEvery { supplierRepository.delete(1) } returns true
+        initService()
 
-        supplierService.deleteSupplierById(1)
+        service.deleteSupplierById(1)
 
-        coVerify(exactly = 1) { supplierRepository.delete(1) }
+        coVerify { supplierRepository.hasSupplies(1) }
+        coVerify { supplierRepository.delete(1) }
     }
 
     @Test
-    fun deleteSupplierById_shouldThrowWhenHasSupplies() = runTest {
+    fun `deleteSupplierById should throw IllegalArgumentException when has supplies`() = runTest {
         coEvery { supplierRepository.hasSupplies(1) } returns true
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            supplierService.deleteSupplierById(1)
+        try {
+            service.deleteSupplierById(1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Cannot delete supplier with existing supplies", e.message)
         }
+        coVerify { supplierRepository.hasSupplies(1) }
         coVerify(exactly = 0) { supplierRepository.delete(any()) }
     }
 
     @Test
-    fun deleteSupplierById_shouldThrowWhenNotFound() = runTest {
+    fun `deleteSupplierById should throw NoSuchElementException when not found`() = runTest {
         coEvery { supplierRepository.hasSupplies(1) } returns false
         coEvery { supplierRepository.delete(1) } returns false
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            supplierService.deleteSupplierById(1)
+        try {
+            service.deleteSupplierById(1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 }

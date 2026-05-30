@@ -1,275 +1,393 @@
 package service
 
+import api.dto.CreateWarehouseRequest
+import api.dto.UpdateWarehouseRequest
+import domain.model.Category
+import domain.model.Warehouse
+import domain.model.WarehouseProductDetail
 import domain.repository.WarehouseStats
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
-import kotlin.test.assertNull
+import kotlin.test.fail
 
 class WarehouseServiceTest : BaseServiceTest() {
 
-    // getAllWarehouses
-    @Test
-    fun getAllWarehouses_shouldReturnAllWarehouses() = runTest {
-        coEvery { warehouseRepository.findAll() } returns listOf(testWarehouse)
+    private lateinit var service: WarehouseService
 
-        val result = warehouseService.getAllWarehouses()
-
-        assertEquals(1, result.size)
-        assertEquals(testWarehouse, result[0])
-        coVerify(exactly = 1) { warehouseRepository.findAll() }
+    private fun initService() {
+        service = WarehouseService(warehouseRepository, warehouseProductRepository)
     }
 
     @Test
-    fun getAllWarehouses_shouldReturnEmptyList() = runTest {
-        coEvery { warehouseRepository.findAll() } returns emptyList()
+    fun `getAllWarehouses should return list of warehouses`() = runTest {
+        val expected = listOf(
+            mockWarehouse(1, "Main Warehouse", "123 Main St"),
+            mockWarehouse(2, "Secondary Warehouse", "456 Oak Ave")
+        )
+        coEvery { warehouseRepository.findAllByUserId(1) } returns expected
+        initService()
 
-        val result = warehouseService.getAllWarehouses()
+        val result = service.getAllWarehouses(1)
 
-        assertTrue(result.isEmpty())
-    }
-
-    
-    // getWarehouseById
-    @Test
-    fun getWarehouseById_shouldReturnWarehouse() = runTest {
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-
-        val result = warehouseService.getWarehouseById(1)
-
-        assertEquals(testWarehouse, result)
+        assertEquals(2, result.size)
+        assertEquals("Main Warehouse", result[0].title)
+        coVerify { warehouseRepository.findAllByUserId(1) }
     }
 
     @Test
-    fun getWarehouseById_shouldThrowWhenNotFound() = runTest {
-        coEvery { warehouseRepository.findById(99) } returns null
+    fun `getWarehouseById should return warehouse when exists and belongs to user`() = runTest {
+        val expected = mockWarehouse(1, "Main Warehouse")
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns expected
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            warehouseService.getWarehouseById(99)
+        val result = service.getWarehouseById(1, 1)
+
+        assertEquals("Main Warehouse", result.title)
+        coVerify { warehouseRepository.findByIdAndUserId(1, 1) }
+    }
+
+    @Test
+    fun `getWarehouseById should throw NoSuchElementException when not found`() = runTest {
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns null
+        initService()
+
+        try {
+            service.getWarehouseById(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 
-    
-    // createWarehouse
     @Test
-    fun createWarehouse_shouldReturnCreatedWarehouse() = runTest {
+    fun `createWarehouse should create warehouse with valid data`() = runTest {
+        val dto = CreateWarehouseRequest(
+            title = "Main Warehouse",
+            address = "123 Main St",
+            capacity = 1000,
+            width = 100L,
+            length = 200L,
+            height = 50L
+        )
+        val expected = mockWarehouse(1, "Main Warehouse", "123 Main St")
         coEvery {
-            warehouseRepository.create("Главный склад", "Москва, ул. Складская, 5")
-        } returns testWarehouse
+            warehouseRepository.create("Main Warehouse", "123 Main St", 1000, 100L, 200L, 50L, 1)
+        } returns expected
+        initService()
 
-        val result = warehouseService.createWarehouse(createWarehouseRequest)
+        val result = service.createWarehouse(dto, 1)
 
-        assertEquals(testWarehouse, result)
-        coVerify(exactly = 1) {
-            warehouseRepository.create("Главный склад", "Москва, ул. Складская, 5")
+        assertEquals("Main Warehouse", result.title)
+        coVerify {
+            warehouseRepository.create("Main Warehouse", "123 Main St", 1000, 100L, 200L, 50L, 1)
         }
     }
 
     @Test
-    fun createWarehouse_shouldThrowWhenAddressIsBlank() = runTest {
-        val request = createWarehouseRequest.copy(address = "   ")
-
-        assertFailsWith<IllegalArgumentException> {
-            warehouseService.createWarehouse(request)
-        }
-        coVerify(exactly = 0) { warehouseRepository.create(any(), any()) }
-    }
-
-    @Test
-    fun createWarehouse_shouldCreateWithNullTitle() = runTest {
-        val request = createWarehouseRequest.copy(title = null)
-        val warehouseNoTitle = testWarehouse.copy(title = null)
+    fun `createWarehouse should trim title and address`() = runTest {
+        val dto = CreateWarehouseRequest(
+            title = "  Main Warehouse  ",
+            address = "  123 Main St  ",
+            capacity = 1000,
+            width = 100L,
+            length = 200L,
+            height = 50L
+        )
+        val expected = mockWarehouse(1, "Main Warehouse", "123 Main St")
         coEvery {
-            warehouseRepository.create(null, "Москва, ул. Складская, 5")
-        } returns warehouseNoTitle
+            warehouseRepository.create("Main Warehouse", "123 Main St", 1000, 100L, 200L, 50L, 1)
+        } returns expected
+        initService()
 
-        val result = warehouseService.createWarehouse(request)
+        val result = service.createWarehouse(dto, 1)
 
-        assertNull(result.title)
-    }
-
-    @Test
-    fun createWarehouse_shouldTrimAddressBeforeSaving() = runTest {
-        val request = createWarehouseRequest.copy(address = "  Москва, ул. Складская, 5  ")
-        coEvery {
-            warehouseRepository.create(any(), "Москва, ул. Складская, 5")
-        } returns testWarehouse
-
-        warehouseService.createWarehouse(request)
-
-        coVerify { warehouseRepository.create(any(), "Москва, ул. Складская, 5") }
-    }
-
-    
-    // updateWarehouseById
-    @Test
-    fun updateWarehouseById_shouldReturnUpdatedWarehouse() = runTest {
-        val updated = testWarehouse.copy(title = "Новое название")
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-        coEvery {
-            warehouseRepository.update(1, "Новое название", null)
-        } returns updated
-
-        val result = warehouseService.updateWarehouseById(1, updateWarehouseRequest)
-
-        assertEquals("Новое название", result.title)
-        coVerify(exactly = 1) { warehouseRepository.update(1, "Новое название", null) }
-    }
-
-    @Test
-    fun updateWarehouseById_shouldThrowWhenNotFound() = runTest {
-        coEvery { warehouseRepository.findById(99) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            warehouseService.updateWarehouseById(99, updateWarehouseRequest)
+        assertEquals("Main Warehouse", result.title)
+        coVerify {
+            warehouseRepository.create("Main Warehouse", "123 Main St", 1000, 100L, 200L, 50L, 1)
         }
-        coVerify(exactly = 0) { warehouseRepository.update(any(), any(), any()) }
     }
 
     @Test
-    fun updateWarehouseById_shouldThrowWhenAddressIsBlank() = runTest {
-        val request = updateWarehouseRequest.copy(address = "   ")
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
+    fun `createWarehouse should throw IllegalArgumentException when address is blank`() = runTest {
+        val dto = CreateWarehouseRequest(
+            address = "   ",
+            width = 100L,
+            length = 200L,
+            height = 50L
+        )
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            warehouseService.updateWarehouseById(1, request)
+        try {
+            service.createWarehouse(dto, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Address must not be blank", e.message)
         }
-        coVerify(exactly = 0) { warehouseRepository.update(any(), any(), any()) }
+        coVerify(exactly = 0) { warehouseRepository.create(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
-    fun updateWarehouseById_shouldUpdateOnlyProvidedFields() = runTest {
-        val request = updateWarehouseRequest.copy(title = null, address = "Новый адрес")
-        val updated = testWarehouse.copy(address = "Новый адрес")
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-        coEvery { warehouseRepository.update(1, null, "Новый адрес") } returns updated
+    fun `updateWarehouseById should update warehouse when exists`() = runTest {
+        val dto = UpdateWarehouseRequest(
+            title = "Updated Warehouse",
+            address = "456 Oak Ave",
+            capacity = 2000,
+            width = 150L,
+            length = 250L,
+            height = 60L
+        )
+        val expected = mockWarehouse(1, "Updated Warehouse", "456 Oak Ave")
+        coEvery {
+            warehouseRepository.update(1, "Updated Warehouse", "456 Oak Ave", 2000, 150L, 250L, 60L, 1)
+        } returns expected
+        initService()
 
-        val result = warehouseService.updateWarehouseById(1, request)
+        val result = service.updateWarehouseById(1, dto, 1)
 
-        assertEquals("Новый адрес", result.address)
-        assertEquals(testWarehouse.title, result.title) // title не изменился
+        assertEquals("Updated Warehouse", result.title)
+        coVerify {
+            warehouseRepository.update(1, "Updated Warehouse", "456 Oak Ave", 2000, 150L, 250L, 60L, 1)
+        }
     }
 
-    
-    // deleteWarehouseById
     @Test
-    fun deleteWarehouseById_shouldDeleteSuccessfully() = runTest {
+    fun `updateWarehouseById should throw IllegalArgumentException when address is blank`() = runTest {
+        initService()
+
+        try {
+            service.updateWarehouseById(1, UpdateWarehouseRequest(address = "   "), 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Address must not be blank", e.message)
+        }
+        coVerify(exactly = 0) { warehouseRepository.update(any(), any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `updateWarehouseById should throw NoSuchElementException when not found`() = runTest {
+        val dto = UpdateWarehouseRequest(title = "New Title")
+        coEvery {
+            warehouseRepository.update(1, "New Title", null, null, null, null, null, 1)
+        } returns null
+        initService()
+
+        try {
+            service.updateWarehouseById(1, dto, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
+        }
+    }
+
+    @Test
+    fun `deleteWarehouseById should delete warehouse when exists and has no products`() = runTest {
+        coEvery { warehouseRepository.hasAccess(1, 1) } returns true
         coEvery { warehouseRepository.hasProducts(1) } returns false
-        coEvery { warehouseRepository.delete(1) } returns true
+        coEvery { warehouseRepository.delete(1, 1) } returns true
+        initService()
 
-        warehouseService.deleteWarehouseById(1)
+        service.deleteWarehouseById(1, 1)
 
-        coVerify(exactly = 1) { warehouseRepository.delete(1) }
+        coVerify { warehouseRepository.hasAccess(1, 1) }
+        coVerify { warehouseRepository.hasProducts(1) }
+        coVerify { warehouseRepository.delete(1, 1) }
     }
 
     @Test
-    fun deleteWarehouseById_shouldThrowWhenHasProducts() = runTest {
+    fun `deleteWarehouseById should throw NoSuchElementException when no access`() = runTest {
+        coEvery { warehouseRepository.hasAccess(1, 1) } returns false
+        initService()
+
+        try {
+            service.deleteWarehouseById(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
+        }
+        coVerify(exactly = 0) { warehouseRepository.delete(any(), any()) }
+    }
+
+    @Test
+    fun `deleteWarehouseById should throw IllegalArgumentException when has products`() = runTest {
+        coEvery { warehouseRepository.hasAccess(1, 1) } returns true
         coEvery { warehouseRepository.hasProducts(1) } returns true
+        initService()
 
-        assertFailsWith<IllegalArgumentException> {
-            warehouseService.deleteWarehouseById(1)
+        try {
+            service.deleteWarehouseById(1, 1)
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertEquals("Cannot delete warehouse with products", e.message)
         }
-        coVerify(exactly = 0) { warehouseRepository.delete(any()) }
+        coVerify(exactly = 0) { warehouseRepository.delete(any(), any()) }
     }
 
     @Test
-    fun deleteWarehouseById_shouldThrowWhenNotFound() = runTest {
-        coEvery { warehouseRepository.hasProducts(1) } returns false
-        coEvery { warehouseRepository.delete(1) } returns false
+    fun `getProductsByWarehouseId should return products list`() = runTest {
+        val warehouse = mockWarehouse(1, "Main Warehouse")
+        val products = listOf(
+            mockWarehouseProductDetail(1, 10, mockProduct(1)),
+            mockWarehouseProductDetail(2, 20, mockProduct(2))
+        )
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns warehouse
+        coEvery { warehouseProductRepository.findByWarehouseWithDetails(1) } returns products
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            warehouseService.deleteWarehouseById(1)
+        val result = service.getProductsByWarehouseId(1, 1)
+
+        assertEquals(2, result.size)
+        coVerify { warehouseRepository.findByIdAndUserId(1, 1) }
+        coVerify { warehouseProductRepository.findByWarehouseWithDetails(1) }
+    }
+
+    @Test
+    fun `getProductsByWarehouseId should throw NoSuchElementException when warehouse not found`() = runTest {
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns null
+        initService()
+
+        try {
+            service.getProductsByWarehouseId(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 
-    
-    // getProductsByWarehouseId
     @Test
-    fun getProductsByWarehouseId_shouldReturnProducts() = runTest {
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-        coEvery { warehouseProductRepository.findByWarehouseWithDetails(1) } returns listOf(testProductDetail)
+    fun `getProductsGroupedByCategory should return grouped products`() = runTest {
+        val warehouse = mockWarehouse(1, "Main Warehouse")
+        val electronicsCategory = Category(1, "Electronics")
+        val products = listOf(mockWarehouseProductDetail(1, 10, mockProduct(1)))
+        val groupedMap = mapOf(electronicsCategory to products)
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns warehouse
+        coEvery { warehouseProductRepository.findByWarehouseGroupedByCategory(1) } returns groupedMap
+        initService()
 
-        val result = warehouseService.getProductsByWarehouseId(1)
+        val result = service.getProductsGroupedByCategory(1, 1)
 
         assertEquals(1, result.size)
-        assertEquals(testProductDetail, result[0])
+        coVerify { warehouseRepository.findByIdAndUserId(1, 1) }
+        coVerify { warehouseProductRepository.findByWarehouseGroupedByCategory(1) }
     }
 
     @Test
-    fun getProductsByWarehouseId_shouldThrowWhenWarehouseNotFound() = runTest {
-        coEvery { warehouseRepository.findById(99) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            warehouseService.getProductsByWarehouseId(99)
-        }
-        coVerify(exactly = 0) { warehouseProductRepository.findByWarehouse(any()) }
-    }
-
-    @Test
-    fun getProductsByWarehouseId_shouldReturnEmptyWhenNoProducts() = runTest {
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-        coEvery { warehouseProductRepository.findByWarehouseWithDetails(1) } returns emptyList()
-
-        val result = warehouseService.getProductsByWarehouseId(1)
-
-        assertTrue(result.isEmpty())
-    }
-
-    
-    // getProductsGroupedByCategory
-    @Test
-    fun getProductsGroupedByCategory_shouldReturnGroupedProducts() = runTest {
-        val grouped = mapOf("Electronics" to listOf(testProductDetail))
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
-        coEvery {
-            warehouseProductRepository.findByWarehouseGroupedByCategory(1)
-        } returns grouped
-
-        val result = warehouseService.getProductsGroupedByCategory(1)
-
-        assertEquals(1, result.size)
-        assertTrue(result.containsKey("Electronics"))
-        assertEquals(1, result["Electronics"]?.size)
-    }
-
-    @Test
-    fun getProductsGroupedByCategory_shouldThrowWhenWarehouseNotFound() = runTest {
-        coEvery { warehouseRepository.findById(99) } returns null
-
-        assertFailsWith<NoSuchElementException> {
-            warehouseService.getProductsGroupedByCategory(99)
-        }
-        coVerify(exactly = 0) {
-            warehouseProductRepository.findByWarehouseGroupedByCategory(any())
-        }
-    }
-    
-
-    // getWarehouseStats
-    @Test
-    fun getWarehouseStats_shouldReturnStats() = runTest {
-        val stats = WarehouseStats(totalQuantity = 20, totalPrice = 100000L, uniqueProducts = 1)
-        coEvery { warehouseRepository.findById(1) } returns testWarehouse
+    fun `getWarehouseStats should return stats`() = runTest {
+        val warehouse = mockWarehouse(1, "Main Warehouse")
+        val stats = mockWarehouseStats(100, 50000L, 10)
+        coEvery { warehouseRepository.findByIdAndUserId(1, 1) } returns warehouse
         coEvery { warehouseProductRepository.getTotalStats(1) } returns stats
+        initService()
 
-        val result = warehouseService.getWarehouseStats(1)
+        val result = service.getWarehouseStats(1, 1)
 
-        assertEquals(20, result.totalQuantity)
-        assertEquals(100000L, result.totalPrice)
-        assertEquals(1, result.uniqueProducts)
+        assertEquals(100, result.totalQuantity)
+        assertEquals(50000L, result.totalPrice)
+        coVerify { warehouseRepository.findByIdAndUserId(1, 1) }
+        coVerify { warehouseProductRepository.getTotalStats(1) }
     }
 
     @Test
-    fun getWarehouseStats_shouldThrowWhenWarehouseNotFound() = runTest {
-        coEvery { warehouseRepository.findById(99) } returns null
+    fun `getWarehouseIdBySupplyId should return warehouse id when exists and user has access`() = runTest {
+        val warehouseId = 5
+        coEvery { warehouseRepository.findBySupplyId(1) } returns mockWarehouse(warehouseId)
+        coEvery { warehouseRepository.hasAccess(warehouseId, 1) } returns true
+        initService()
 
-        assertFailsWith<NoSuchElementException> {
-            warehouseService.getWarehouseStats(99)
+        val result = service.getWarehouseIdBySupplyId(1, 1)
+
+        assertEquals(warehouseId, result)
+        coVerify { warehouseRepository.findBySupplyId(1) }
+        coVerify { warehouseRepository.hasAccess(warehouseId, 1) }
+    }
+
+    @Test
+    fun `getWarehouseIdBySupplyId should throw NoSuchElementException when warehouse not found`() = runTest {
+        coEvery { warehouseRepository.findBySupplyId(1) } returns null
+        initService()
+
+        try {
+            service.getWarehouseIdBySupplyId(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
-        coVerify(exactly = 0) { warehouseProductRepository.getTotalStats(any()) }
+    }
+
+    @Test
+    fun `getWarehouseIdBySupplyId should throw NoSuchElementException when no access`() = runTest {
+        val warehouseId = 5
+        coEvery { warehouseRepository.findBySupplyId(1) } returns mockWarehouse(warehouseId)
+        coEvery { warehouseRepository.hasAccess(warehouseId, 1) } returns false
+        initService()
+
+        try {
+            service.getWarehouseIdBySupplyId(1, 1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
+        }
+    }
+
+    @Test
+    fun `hasAccess should return true when user has access`() = runTest {
+        coEvery { warehouseRepository.hasAccess(1, 1) } returns true
+        initService()
+
+        val result = service.hasAccess(1, 1)
+
+        assertEquals(true, result)
+    }
+
+    @Test
+    fun `hasAccess should return false when user has no access`() = runTest {
+        coEvery { warehouseRepository.hasAccess(1, 2) } returns false
+        initService()
+
+        val result = service.hasAccess(1, 2)
+
+        assertEquals(false, result)
+    }
+
+    @Test
+    fun `getWarehouseByIdInternal should return warehouse when exists`() = runTest {
+        val expected = mockWarehouse(1, "Main Warehouse")
+        coEvery { warehouseRepository.findById(1) } returns expected
+        initService()
+
+        val result = service.getWarehouseByIdInternal(1)
+
+        assertEquals("Main Warehouse", result.title)
+        coVerify { warehouseRepository.findById(1) }
+    }
+
+    @Test
+    fun `getWarehouseByIdInternal should throw NoSuchElementException when not found`() = runTest {
+        coEvery { warehouseRepository.findById(1) } returns null
+        initService()
+
+        try {
+            service.getWarehouseByIdInternal(1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
+        }
+    }
+
+    @Test
+    fun `getWarehouseIdBySupplyIdInternal should return warehouse id`() = runTest {
+        coEvery { warehouseRepository.findBySupplyId(1) } returns mockWarehouse(5)
+        initService()
+
+        val result = service.getWarehouseIdBySupplyIdInternal(1)
+
+        assertEquals(5, result)
+    }
+
+    @Test
+    fun `getWarehouseIdBySupplyIdInternal should throw NoSuchElementException when not found`() = runTest {
+        coEvery { warehouseRepository.findBySupplyId(1) } returns null
+        initService()
+
+        try {
+            service.getWarehouseIdBySupplyIdInternal(1)
+            fail("Expected NoSuchElementException")
+        } catch (e: NoSuchElementException) {
+        }
     }
 }

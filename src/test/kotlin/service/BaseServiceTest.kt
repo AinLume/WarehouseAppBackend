@@ -1,187 +1,137 @@
-//package service
-//
-//import api.dto.AddSupplyProductRequest
-//import api.dto.CreateProductRequest
-//import api.dto.CreateSupplierRequest
-//import api.dto.CreateSupplyRequest
-//import api.dto.CreateWarehouseRequest
-//import api.dto.UpdateProductRequest
-//import api.dto.UpdateSupplierRequest
-//import api.dto.UpdateWarehouseRequest
-//import domain.model.Category
-//import domain.model.Product
-//import domain.model.Supplier
-//import domain.model.Supply
-//import domain.model.SupplyEnriched
-//import domain.model.SupplyProduct
-//import domain.model.SupplyProductDetail
-//import domain.model.SupplyStatus
-//import domain.model.Warehouse
-//import domain.model.WarehouseProductDetail
-//import domain.repository.CategoryRepository
-//import domain.repository.ProductRepository
-//import domain.repository.SupplierRepository
-//import domain.repository.SupplyRepository
-//import domain.repository.WarehouseProductRepository
-//import domain.repository.WarehouseRepository
-//import io.mockk.clearAllMocks
-//import io.mockk.mockk
-//import kotlin.test.AfterTest
-//
-//abstract class BaseServiceTest {
-//    val categoryRepository = mockk<CategoryRepository>()
-//    val productRepository = mockk<ProductRepository>()
-//    val supplierRepository = mockk<SupplierRepository>()
-//    val warehouseRepository = mockk<WarehouseRepository>()
-//    val supplyRepository = mockk<SupplyRepository>()
-//    val warehouseProductRepository = mockk<WarehouseProductRepository>()
-//
-//    val categoryService = CategoryService(categoryRepository)
-//    val supplierService = SupplierService(supplierRepository)
-//    val warehouseService = WarehouseService(warehouseRepository, warehouseProductRepository)
-//    val productService = ProductService(productRepository, categoryService)
-//    val supplyService = SupplyService(
-//        supplyRepository,
-//        supplierService,
-//        warehouseService,
-//        productService,
-//        warehouseProductRepository
-//    )
-//
-//    // Category
-//    val testCategory = Category(
-//        categoryId = 1,
-//        title = "Electronics"
-//    )
-//    val testCategories = listOf(
-//        testCategory,
-//        Category(categoryId = 2, title = "Food")
-//    )
-//
-//    // Product
-//    val testProduct = Product(
-//        productId = 1L,
-//        categoryId = 1,
-//        title = "Laptop",
-//        description = "Gaming laptop"
-//    )
-//    val testProducts = listOf(
-//        testProduct,
-//        testProduct.copy(productId = 2L, title = "Phone", description = null)
-//    )
-//    val createProductRequest = CreateProductRequest(
-//        categoryId = 1,
-//        title = "Laptop",
-//        description = "Gaming laptop"
-//    )
-//    val updateProductRequest = UpdateProductRequest(
-//        categoryId = null,
-//        title = "New Laptop",
-//        description = null
-//    )
-//
-//    // Supplier
-//    val testSupplier = Supplier(
-//        supplierId = 1,
-//        name = "ООО Поставщик",
-//        phone = "+79991234567",
-//        email = "supplier@example.com",
-//        address = "Москва, ул. Ленина, 1"
-//    )
-//    val testSuppliers = listOf(
-//        testSupplier,
-//        testSupplier.copy(supplierId = 2, name = "ИП Иванов", email = null)
-//    )
-//    val createSupplierRequest = CreateSupplierRequest(
-//        name = "ООО Поставщик",
-//        phone = "+79991234567",
-//        email = "supplier@example.com",
-//        address = "Москва, ул. Ленина, 1"
-//    )
-//
-//    val updateSupplierRequest = UpdateSupplierRequest(
-//        name = "Новый поставщик",
-//        phone = null,
-//        email = null,
-//        address = null
-//    )
-//
-//    // Warehouse
-//    val testWarehouse = Warehouse(
-//        warehouseId = 1,
-//        title = "Главный склад",
-//        address = "Москва, ул. Складская, 5"
-//    )
-//
-//    val createWarehouseRequest = CreateWarehouseRequest(
-//        title = "Главный склад",
-//        address = "Москва, ул. Складская, 5"
-//    )
-//
-//    val updateWarehouseRequest = UpdateWarehouseRequest(
-//        title = "Новое название",
-//        address = null
-//    )
-//
-//    // WarehouseProduct
-//
-//    val testProductDetail = WarehouseProductDetail(
-//        warehouseProductId = 1L,
-//        quantity = 20,
-//        product = Product(
-//            productId = 1L,
-//            categoryId = 1,
-//            title = "Тестовый продукт",
-//            description = "Описание тестового продукта"
-//        )
-//    )
-//
-//    // Supply
-//    val testSupply = Supply(
-//        supplyId  = 1L,
-//        supplierId = 1,
-//        status = SupplyStatus.CREATED,
-//        totalPrice = 0L,
-//        createdAt = "2026-03-11T10:00:00Z",
-//        updatedAt = "2026-03-11T10:00:00Z"
-//    )
-//    val testSupplyEnriched = SupplyEnriched(
-//        supply = testSupply,
-//        warehouseId = 1,
-//        warehouseTitle = "Main Warehouse",
-//        supplierName = "Test Supplier"
-//    )
-//    val testSupplies = listOf(
-//        testSupplyEnriched,
-//        testSupplyEnriched.copy(supply = testSupply.copy(supplyId = 2L, status = SupplyStatus.PENDING))
-//    )
-//    val testSupplyProduct = SupplyProduct(
-//        supplyProductId = 1L,
-//        supplyId = 1L,
-//        productId = 1L,
-//        quantity = 10,
-//        unitPrice = 5000L
-//    )
-//    val createSupplyRequest = CreateSupplyRequest(
-//        supplierId = 1,
-//        warehouseId = 1
-//    )
-//
-//    val addSupplyProductRequest = AddSupplyProductRequest(
-//        productId = 1L,
-//        quantity = 10,
-//        unitPrice = 5000L
-//    )
-//
-//    val testSupplyProductDetail = SupplyProductDetail(
-//        supplyProductId = 1L,
-//        quantity = 10,
-//        unitPrice = 5000L,
-//        product = testProduct
-//    )
-//
-//    @AfterTest
-//    fun tearDown() {
-//        clearAllMocks()
-//    }
-//}
+package service
+
+import domain.model.*
+import domain.repository.*
+import io.mockk.*
+
+abstract class BaseServiceTest {
+    protected val categoryRepository: CategoryRepository = mockk()
+    protected val productRepository: ProductRepository = mockk()
+    protected val supplierRepository: SupplierRepository = mockk()
+    protected val warehouseRepository: WarehouseRepository = mockk()
+    protected val warehouseProductRepository: WarehouseProductRepository = mockk()
+    protected val supplyRepository: SupplyRepository = mockk()
+
+    protected fun mockCategory(id: Int = 1, title: String = "Electronics") = Category(
+        categoryId = id,
+        title = title
+    )
+
+    protected fun mockProduct(
+        id: Long = 1L,
+        categoryId: Int = 1,
+        title: String = "Laptop",
+        description: String? = "Gaming laptop"
+    ) = Product(
+        productId = id,
+        categoryId = categoryId,
+        title = title,
+        description = description,
+        width = 30,
+        length = 20,
+        height = 5
+    )
+
+    protected fun mockProductEx(
+        id: Long = 1L,
+        categoryId: Int = 1,
+        categoryTitle: String = "Electronics",
+        title: String = "Laptop"
+    ) = ProductEx(
+        productId = id,
+        categoryId = categoryId,
+        categoryTitle = categoryTitle,
+        title = title,
+        description = "Gaming laptop",
+        width = 30,
+        length = 20,
+        height = 5
+    )
+
+    protected fun mockSupplier(
+        id: Int = 1,
+        name: String = "TechSupplier",
+        phone: String = "+79001234567",
+        email: String? = "tech@supplier.com"
+    ) = Supplier(
+        supplierId = id,
+        name = name,
+        phone = phone,
+        email = email,
+        address = "Moscow"
+    )
+
+    protected fun mockWarehouse(
+        id: Int = 1,
+        title: String? = "Main Warehouse",
+        address: String = "123 Main St"
+    ) = Warehouse(
+        warehouseId = id,
+        title = title,
+        address = address,
+        capacity = 1000,
+        width = 100L,
+        length = 200L,
+        height = 50L
+    )
+
+    protected fun mockSupply(
+        id: Long = 1L,
+        supplierId: Int = 1,
+        status: SupplyStatus = SupplyStatus.CREATED,
+        totalPrice: Long = 10000L
+    ) = Supply(
+        supplyId = id,
+        supplierId = supplierId,
+        status = status,
+        totalPrice = totalPrice,
+        createdAt = "2024-01-01T00:00:00",
+        updatedAt = "2024-01-01T00:00:00"
+    )
+
+    protected fun mockSupplyEnriched(
+        supply: Supply = mockSupply(),
+        warehouseId: Int = 1,
+        warehouseTitle: String? = "Main Warehouse",
+        supplierName: String = "TechSupplier"
+    ) = SupplyEnriched(
+        supply = supply,
+        warehouseId = warehouseId,
+        warehouseTitle = warehouseTitle,
+        supplierName = supplierName
+    )
+
+    protected fun mockSupplyProduct(
+        id: Long = 1L,
+        supplyId: Long = 1L,
+        productId: Long = 1L,
+        quantity: Int = 10,
+        unitPrice: Long = 1000L
+    ) = SupplyProduct(
+        supplyProductId = id,
+        supplyId = supplyId,
+        productId = productId,
+        quantity = quantity,
+        unitPrice = unitPrice
+    )
+
+    protected fun mockWarehouseProductDetail(
+        id: Long = 1L,
+        quantity: Int = 10,
+        product: Product = mockProduct()
+    ) = WarehouseProductDetail(
+        warehouseProductId = id,
+        quantity = quantity,
+        product = product
+    )
+
+    protected fun mockWarehouseStats(
+        totalQuantity: Int = 100,
+        totalPrice: Long = 50000L,
+        uniqueProducts: Int = 10
+    ) = WarehouseStats(
+        totalQuantity = totalQuantity,
+        totalPrice = totalPrice,
+        uniqueProducts = uniqueProducts
+    )
+}
