@@ -4,9 +4,9 @@ import domain.model.Product
 import domain.model.ProductEx
 
 interface ProductRepository {
-    suspend fun findAll(categoryId: Int? = null): List<ProductEx>
+    suspend fun findAll(categoryId: Int? = null, search: String? = null): List<ProductEx>
     suspend fun findById(id: Long): Product?
-    suspend fun findAllByUserId(userId: Int, categoryId: Int? = null): List<ProductEx>
+    suspend fun findAllByUserId(userId: Int, categoryId: Int? = null, search: String? = null): List<ProductEx>
     suspend fun findByIdAndUserId(id: Long, userId: Int): Product?
     suspend fun create(
         categoryId: Int,

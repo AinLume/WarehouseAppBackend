@@ -27,13 +27,14 @@ fun Route.productRoutes() {
     authenticate("jwt-auth") {
         route("/products") {
 
-            // GET /products?categoryId=1 — список, опциональный фильтр по категории
+            // GET /products?categoryId=1&search=xxx — список, опциональный фильтр по категории и поиск
             get {
                 val principal = call.principal<UserIdPrincipal>()
                     ?: return@get call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Unauthorized"))
                 val categoryId = call.request.queryParameters["categoryId"]?.toIntOrNull()
+                val search = call.request.queryParameters["search"]?.takeIf { it.isNotBlank() }
 
-                val products = service.getAllProducts(categoryId, principal.userId)
+                val products = service.getAllProducts(categoryId, search, principal.userId)
 
                 call.respond(HttpStatusCode.OK, products.map { it.toResponse() })
             }

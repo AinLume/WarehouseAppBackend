@@ -10,8 +10,8 @@ class ProductService(
     private val repository: ProductRepository
 ) {
 
-    suspend fun getAllProducts(categoryId: Int?, userId: Int): List<ProductEx> =
-        repository.findAllByUserId(userId, categoryId)
+    suspend fun getAllProducts(categoryId: Int?, search: String?, userId: Int): List<ProductEx> =
+        repository.findAllByUserId(userId, categoryId, search)
 
     suspend fun getProductById(id: Long, userId: Int): Product =
         repository.findByIdAndUserId(id, userId)

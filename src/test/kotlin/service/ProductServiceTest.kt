@@ -14,19 +14,19 @@ class ProductServiceTest : BaseServiceTest() {
     // getAllProducts
     @Test
     fun getAllProducts_shouldReturnAllProducts() = runTest {
-        coEvery { productRepository.findAll(null) } returns testProducts
+        coEvery { productRepository.findAll(null, null) } returns testProducts
 
-        val result = productService.getAllProducts(null)
+        val result = productService.getAllProducts(null, null, 1)
 
         assertEquals(testProducts, result)
-        coVerify(exactly = 1) { productRepository.findAll(null) }
+        coVerify(exactly = 1) { productRepository.findAll(null, null) }
     }
 
     @Test
     fun getAllProducts_shouldReturnFilteredByCategory() = runTest {
-        coEvery { productRepository.findAll(1) } returns listOf(testProduct)
+        coEvery { productRepository.findAll(1, null) } returns listOf(testProduct)
 
-        val result = productService.getAllProducts(1)
+        val result = productService.getAllProducts(1, null, 1)
 
         assertEquals(1, result.size)
         assertEquals(testProduct, result[0])
@@ -34,9 +34,9 @@ class ProductServiceTest : BaseServiceTest() {
 
     @Test
     fun getAllProducts_shouldReturnEmptyList() = runTest {
-        coEvery { productRepository.findAll(null) } returns emptyList()
+        coEvery { productRepository.findAll(null, null) } returns emptyList()
 
-        val result = productService.getAllProducts(null)
+        val result = productService.getAllProducts(null, null, 1)
 
         assertTrue(result.isEmpty())
     }

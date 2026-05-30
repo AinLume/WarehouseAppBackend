@@ -239,7 +239,11 @@ class SupplyRepositoryImpl : SupplyRepository {
     }
 
     override suspend fun hasAccess(supplyId: Long, userId: Int): Boolean = dbQuery {
-        (WarehouseSupplyTable innerJoin UserWarehouseTable)
+        WarehouseSupplyTable
+            .innerJoin(UserWarehouseTable,
+                onColumn = { WarehouseSupplyTable.warehouseId },
+                otherColumn = { UserWarehouseTable.warehouseId }
+            )
             .selectAll()
             .where {
                 (WarehouseSupplyTable.supplyId eq supplyId) and
